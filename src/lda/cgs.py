@@ -178,7 +178,7 @@ class CollapsedGibbsSampling:
 if __name__ == "__main__":
     #d = create_data("/nfshomes/jbg/sentop/topicmod/data/de_news/txt/*.en.txt", doc_limit=50, delimiter="<doc")
     from io.de_news_io import parse_de_news_gs
-    d = parse_de_news_gs("/windows/d/Data/de-news/txt/*.en.txt", "english", 100, 0.3, 0.0001)
+    d = parse_de_news_gs("../../data/de-news/*.en.txt", "english", 100, 0.3, 0.0001)
     
     lda = CollapsedGibbsSampling()
     lda._initialize(d)

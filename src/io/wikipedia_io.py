@@ -1,17 +1,8 @@
-
 from glob import glob;
 from collections import defaultdict;
 from nltk.probability import FreqDist;
 from string import rstrip;
 from os import remove, access, F_OK;
-
-def parse_wikiepedia_gs(glob_expression, lang="english", doc_limit= -1, max_df_percentage = 1.0, min_df_percentage = 0.0):
-    docs = parse_de_news(glob_expression, lang, doc_limit, max_df_percentage, min_df_percentage);
-    return docs
-
-def parse_wikiepedia_vi(glob_expression, lang="english", doc_limit= -1, max_df_percentage = 1.0, min_df_percentage = 0.0):
-    docs = parse_de_news(glob_expression, lang, doc_limit, max_df_percentage, min_df_percentage);
-    return parse_data(docs)
 
 # compute the df counts of the given corpus
 # max_df_percentage: a value between 0 to 1, upper cutoff for df is computed as document number times max_df_percentage

@@ -13,7 +13,7 @@ class VariationalInference(object):
     # key - the document id
     # value - a list of words in the corresponding document
     # take note: words are not terms, they are repeatable and thus might be not unique
-    def __init__(self, num_topics, data_en, data_de):
+    def __init__(self):
         # initialize the iteration parameters
         self._gamma_converge = 0.00001
         self._gamma_maximum_iteration = 500
@@ -23,7 +23,8 @@ class VariationalInference(object):
         self._alpha_maximum_decay = 10
         self._maximum_iteration = 500
         self._converge = 0.00001
-        
+    
+    def _initialize(self, num_topics, data_en, data_de):
         # initialize the total number of topics.
         self._K = num_topics
         
@@ -482,22 +483,24 @@ class VariationalInference(object):
         #print self._gamma
             
 if __name__ == "__main__":
-    from io.de_news_io import parse_de_news_vi, map_corpus
+    from io.de_news_io import parse_de_news_vi
+    from io.io_adapter import map_corpus
     from facility.output_function import output_dict, output_defaultdict_dict
     
-    data_en = parse_de_news_vi("/windows/d/Data/de-news/txt/*.en.txt", "english",
+    data_en = parse_de_news_vi("../../../data/de-news/*.en.txt", "english",
                   1500, 0.2, 0.0001)
     
-    data_de = parse_de_news_vi("/windows/d/Data/de-news/txt/*.de.txt", "german",
+    data_de = parse_de_news_vi("../../../data/de-news/*.de.txt", "german",
                   1500, 0.2, 0.0001)
     print len(data_en), "\t", len(data_de)
     
     [data_en, data_de] = map_corpus(data_en, data_de)
     
-    lda = VariationalInference(7, data_en, data_de);
+    lda = VariationalInference()
+    lda._initialize(7, data_en, data_de);
     lda.learning();
     
-    output_dict(lda._alpha, "/windows/d/Data/output/", "alpha.txt")
-    output_defaultdict_dict(lda._gamma, "/windows/d/Data/output/", "gamma.txt")
-    output_defaultdict_dict(lda._beta_en, "/windows/d/Data/output/", "beta_en.txt")
-    output_defaultdict_dict(lda._beta_de, "/windows/d/Data/output/", "beta_de.txt")
+    output_dict(lda._alpha, "../../../output/", "alpha.txt")
+    output_defaultdict_dict(lda._gamma, "../../../output/", "gamma.txt")
+    output_defaultdict_dict(lda._beta_en, "../../../output/", "beta_en.txt")
+    output_defaultdict_dict(lda._beta_de, "../../../output/", "beta_de.txt")

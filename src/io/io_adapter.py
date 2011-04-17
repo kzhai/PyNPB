@@ -1,6 +1,5 @@
 from glob import glob;
 from collections import defaultdict;
-from topmod.facility.output_function import output_defaultdict_dict, output_dict
 
 # this method is used for mapping documents correspondence between two corpora, usually for multilingual study
 # corpus_a, corpus_b: dict or defaultdict(dict) data type, indexed by document id
@@ -92,8 +91,7 @@ def append(data, file):
         i+=1;
         
 if __name__ == "__main__":
-    from topmod.io.de_news_io import parse_de_news_vi, map_corpus
-    from topmod.facility.output_function import output_dict, output_defaultdict_dict
+    from io.de_news_io import parse_de_news_vi, map_corpus
     
     data_en = parse_de_news_vi("/windows/d/Data/de-news/txt/*.en.txt", "english",
                   1500, 0.2, 0.0001)
