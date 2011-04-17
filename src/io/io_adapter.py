@@ -93,10 +93,10 @@ def append(data, file):
 if __name__ == "__main__":
     from io.de_news_io import parse_de_news_vi, map_corpus
     
-    data_en = parse_de_news_vi("/windows/d/Data/de-news/txt/*.en.txt", "english",
+    data_en = parse_de_news_vi("../../data/de-news/txt/*.en.txt", "english",
                   1500, 0.2, 0.0001)
     
-    data_de = parse_de_news_vi("/windows/d/Data/de-news/txt/*.de.txt", "german",
+    data_de = parse_de_news_vi("../../data/de-news/txt/*.de.txt", "german",
                   1500, 0.2, 0.0001)
     print len(data_en), "\t", len(data_de)
     

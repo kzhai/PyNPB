@@ -8,7 +8,7 @@ def parse_de_news_gs(glob_expression, lang="english", doc_limit= -1, max_df_perc
 
 def parse_de_news_vi(glob_expression, lang="english", doc_limit= -1, max_df_percentage = 1.0, min_df_percentage = 0.0):
     docs = parse_de_news(glob_expression, lang, doc_limit, max_df_percentage, min_df_percentage);
-    return parse_data(docs)
+    return convert_format_gs2vi(docs)
 
 # compute the df counts of the given corpus
 # max_df_percentage: a value between 0 to 1, upper cutoff for df is computed as document number times max_df_percentage
@@ -110,10 +110,10 @@ def parse_de_news(glob_expression, lang="english", doc_limit= -1, max_df_percent
     
     return docs
 
-# this method convert a corpus into proper format for training lda model for variational inference
+# this method convert a corpus from gibbs sampling format into proper format for variational inference format
 # output a defaultdict(dict) data type, first indexed by the document id, then indexed by the unique tokens
 # corpus: a dict data type, indexed by document id, corresponding value is a list of words (not necessarily unique from each other)
-def parse_data(corpus):
+def convert_format_gs2vi(corpus):
     docs = defaultdict(dict)
     
     for doc in corpus.keys():
@@ -128,16 +128,14 @@ def parse_data(corpus):
     return docs
 
 if __name__ == "__main__":
-    #print cutoff_df_de_news("/windows/d/Data/de-news/txt/*.en.txt", 1, 0.5, 0.001)
-    
     data_en = parse_de_news("/windows/d/Data/de-news/txt/*.en.txt", "english",
                   1, 0.4, 0.0001)
     #print data_en
     
-    data_en = parse_data(data_en)
+    data_en = convert_format_gs2vi(data_en)
     data_de = parse_de_news("/windows/d/Data/de-news/txt/*.de.txt", "german",
                   1, 0.4, 0.0001)
-    data_de = parse_data(data_de)
+    data_de = convert_format_gs2vi(data_de)
     print len(data_en), "\t", len(data_de)
     
     from io.io_adapter import map_corpus

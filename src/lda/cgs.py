@@ -6,6 +6,8 @@
 # Modification: Ke Zhai
 # Email: zhaike@cs.umd.edu
 
+#TODO: buggy version, under modication
+
 from collections import defaultdict
 from math import log, exp
 from random import random
