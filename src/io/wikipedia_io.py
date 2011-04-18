@@ -2,56 +2,10 @@ from glob import glob;
 from collections import defaultdict;
 from nltk.probability import FreqDist;
 from string import rstrip;
-from os import remove, access, F_OK;
-
-# compute the df counts of the given corpus
-# max_df_percentage: a value between 0 to 1, upper cutoff for df is computed as document number times max_df_percentage
-# min_df_percentage: a value between 0 to 1, lower cutoff for df is computed as document number times min_df_percentage
-def cutoff_df_de_news(glob_expression, doc_limit= -1, max_df_percentage = 1.0, min_df_percentage = 0.0):
-    from nltk.tokenize.treebank import TreebankWordTokenizer
-    tokenizer = TreebankWordTokenizer()
-
-    from string import ascii_lowercase
-    files = glob(glob_expression)
-    print("Found %i files" % len(files))
-    
-    df = FreqDist()
-    doc_count = 0
-    
-    for ii in files:
-        text = open(ii).read().lower()
-        
-        sections = text.split("<doc")
-        
-        for section in sections:
-            if section != None and len(section) != 0:
-                index_content = section.split(">\n<h1>\n")
-                title_content = index_content[1].split("</h1>")
-                # not x in stop: to remove the stopwords
-                # min(y in ascii_lowercase for y in x) : to remove punctuation or any expression with punctuation and special symbols
-                words = [x for x in tokenizer.tokenize(title_content[1]) if min(y in ascii_lowercase for y in x)]
-    
-                words = set(words)
-                for word in words:
-                    df.inc(word, 1)
-                    
-                doc_count += 1
-                    
-        if doc_limit > 0 and doc_count>doc_limit:
-            print("Passed doc limit %i" % doc_count)
-            break
-    
-    max_df = (doc_count*max_df_percentage)
-    min_df = (doc_count*min_df_percentage)
-    filtered_words = [word for word in df.keys() if df[word]>max_df or df[word]<min_df]
-    print("document count %i,\tupper df cutoff %f,\tlower df cutoff %f" % (doc_count, max_df, min_df))
-    print "filtered words: ", filtered_words
-
-    return filtered_words
 
 # this method reads in the data from wikipedia dataset/corpus
 # output a dict data type, indexed by the document id, value is a list of the words in that document, not necessarily unique
-def parse_wikipedia(glob_expression, lang="english", doc_limit= -1, max_df_percentage = 1.0, min_df_percentage = 0.0):
+def parse_wikipedia(glob_expression, lang="english", doc_limit= -1):
     include_id_url = False
     include_path = False
     
@@ -225,7 +179,7 @@ def output_title_mappings(input_file, output_file, lang="german"):
 
 # this method reads in the data from wikipedia dataset/corpus
 # output a dict data type, indexed by the document id, value is a list of the words in that document, not necessarily unique
-def output_wikipedia(glob_expression, output_path, lang="english", doc_limit= -1, max_df_percentage = 1.0, min_df_percentage = 0.0):
+def output_wikipedia(glob_expression, output_path, lang="english", doc_limit= -1):
     include_id_url = False
     
     from nltk.tokenize.treebank import TreebankWordTokenizer
@@ -242,6 +196,7 @@ def output_wikipedia(glob_expression, output_path, lang="english", doc_limit= -1
 
     #filtered_words = cutoff_df_de_news(glob_expression, doc_limit, max_df_percentage, min_df_percentage)
 
+    from os import remove, access, F_OK;
     if access(output_path, F_OK):
         remove(output_path);
 
@@ -318,15 +273,18 @@ def parse_data(corpus):
     
     return docs
 
-if __name__ == "__main__":
+if __name__ == "__main__":    
+     #parsed_docs = output_wikipedia("/windows/d/Data/enwiki/*", "/windows/d/Data/enwiki.txt", "english", -1)
+     #print "parsed ", parsed_docs, " english documents in total..."
+     
      title_a, title_b = retrieve_doc_mappings("/windows/d/Data/en-de-wiki-mapping.txt")
+     
+     print len(title_a), len(title_b)
     
      output_mapped_documents(title_a, "/windows/d/Data/enwiki.txt", "/windows/d/Data/en-mapping-wiki.txt")
-     output_mapped_documents(title_b, "/windows/d/Data/dewiki.txt", "/windows/d/Data/de-mapping-wiki.txt")
+#     output_mapped_documents(title_b, "/windows/d/Data/dewiki.txt", "/windows/d/Data/de-mapping-wiki.txt")
 
-#    parsed_docs = output_wikipedia("/windows/d/Data/enwiki/*", "/windows/d/Data/enwiki.txt", "english",
-#                  -1, 0.4, 0.0001)
-#    print "parsed ", parsed_docs, " english documents in total..."
+    
 #    
 #    parsed_docs = output_wikipedia("/windows/d/Data/dewiki/*", "/windows/d/Data/dewiki.txt", "german",
 #                  -1, 0.4, 0.0001)
