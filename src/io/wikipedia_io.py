@@ -146,7 +146,7 @@ def output_mapped_documents(titles, wiki_file, output_file):
         
         if contents[0] in titles:
             loaded_docs = loaded_docs+1
-            output.write(str(titles.index(contents[0])) + "\t" + contents[1].strip())
+            output.write(str(titles.index(contents[0])) + "\t" + contents[1].strip()) + "\n"
             #output_docs[titles_a.index(contents[0])] = contents[1].strip()
             
         if total_docs%10000==0:
@@ -227,7 +227,6 @@ def output_title_mappings(input_file, output_file, lang="german"):
 # output a dict data type, indexed by the document id, value is a list of the words in that document, not necessarily unique
 def output_wikipedia(glob_expression, output_path, lang="english", doc_limit= -1, max_df_percentage = 1.0, min_df_percentage = 0.0):
     include_id_url = False
-    include_path = False
     
     from nltk.tokenize.treebank import TreebankWordTokenizer
     tokenizer = TreebankWordTokenizer()
