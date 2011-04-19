@@ -17,13 +17,8 @@ from util.log_math import log_sample
 
 class CollapsedGibbsSampling:
     def __init__(self):
-        self._docs = defaultdict(FreqDist)
-        self._topics = defaultdict(FreqDist)
-        
-        self._state = None
-
         # set the document smooth factor
-        self._alpha = 0.1
+        #self._alpha = 0.1
         # set the vocabulary smooth factor
         self._beta = 0.01
         
@@ -42,13 +37,26 @@ class CollapsedGibbsSampling:
         
     # data: a dict data type, indexed by document id, value is a list of words in that document, not necessarily be unique
     def _initialize(self, data, num_topics=10):
+        # define the counts over different topics for all documents, first indexed by doc id, the indexed by topic id
+        self._docs = defaultdict(FreqDist)
+        # define the counts over words for all topics, first indexed by topic id, then indexed by token id
+        self._topics = defaultdict(FreqDist)
+        # define the topic assignment for every word in every document, first indexed by doc id, then indexed by word position
+        self._topic_assignment = defaultdict(dict)
+        
         self._K = num_topics
         
-        self._alpha_sum = self._alpha * self._K
-        self._state = defaultdict(dict)
+        # initialize a K-dimensional vector, valued at 1/K.
+        self._alpha = []
+        self._alpha_sum = 0
+        for k in range(self._K):
+            self._alpha[k] = random() / self._K
+            self._alpha_sum = self._alpha_sum + self._alpha[k]
+        #print self._alpha
+        
+        #self._alpha_sum = self._alpha * self._K
     
         self._data = data
-        
         self._D = len(data)
     
         # initialize the vocabulary, i.e. a list of distinct tokens.
@@ -59,7 +67,8 @@ class CollapsedGibbsSampling:
                 self._vocab.add(self._data[doc][position])
             
                 # initialize the state to unassigned
-                self._state[doc][position] = -1
+                self._topic_assignment[doc][position] = -1
+                
         self._V = len(self._vocab)
         
         #self._beta_sum = float(self._V) * self._beta
@@ -122,10 +131,16 @@ class CollapsedGibbsSampling:
             
         return likelihood
 
-    # compute the conditional distribution
+    """
+    compute the conditional distribution
+    @param doc: doc id
+    @param word: word id
+    @param topic: topic id  
+    @return: the probability value of the topic for that word in that document
+    """
     def prob(self, doc, word, topic):
-        val = log(self._docs[doc][topic] + self._alpha)
-        # this is constant across a document, so we don't need to compute this term
+        val = log(self._docs[doc][topic] + self._alpha[topic])
+        """this is constant across a document, so we don't need to compute this term"""
         # val -= log(self._docs[doc].N() + self._alpha_sum)
         
         val += log(self._topics[topic][word] + self._beta)
@@ -133,38 +148,51 @@ class CollapsedGibbsSampling:
     
         return val
 
-    # this method samples the word at position in document, by covering that word and compute its new topic distribution
-    # doc: a document id
-    # position: the position in doc, ranged as range(self._data[doc])
-    # in the end, both self._state, self._docs and self._topics will change
+    """
+    this method samples the word at position in document, by covering that word and compute its new topic distribution, in the end, both self._topic_assignment, self._docs and self._topics will change
+    @param doc: a document id
+    @param position: the position in doc, ranged as range(self._data[doc])
+    """
     def sample_word(self, doc, position):
+        assert doc >= 0 and doc < len(self._data)
+        assert position >= 0 and position < len(self._data[doc])
+        
         # retrieve the word
         word = self._data[doc][position]
     
         # get the old topic assignment to the word in doc at position
-        old_topic = self._state[doc][position]
+        old_topic = self._topic_assignment[doc][position]
         if old_topic != -1:
             # this word already has a valid topic assignment, decrease the topic|doc counts and word|topic counts by covering up that word
             self.change_count(doc, word, old_topic, -1)
-    
+
+        # compute the topic probability of current word, given the topic assignment for other words
         probs = [self.prob(doc, self._data[doc][position], x) for x in xrange(self._K)]
 
         # sample a new topic out of a distribution according to probs
         new_topic = log_sample(probs)
 
         self.change_count(doc, word, new_topic, 1)
-        self._state[doc][position] = new_topic
+        self._topic_assignment[doc][position] = new_topic
 
-    # this methods change the count of topic|doc and word|topic by delta
-    # this values will be used in the computation
+    """
+    this methods change the count of a topic in one doc and a word of one topic by delta
+    this values will be used in the computation
+    @param doc: the doc id
+    @param word: the word id
+    @param topic: the topic id
+    @param delta: the change in the value
+    """
     def change_count(self, doc, word, topic, delta):
         self._docs[doc].inc(topic, delta)
         self._topics[topic].inc(word, delta)
 
-    # sample the corpus to train the parameters
-    # @param hyper_delay: defines the delay in updating they hyper parameters, i.e., start updating hyper parameter only after hyper_delay number of gibbs sampling iterations. Usually, it specifies a burn-in period. 
+    """
+    sample the corpus to train the parameters
+    @param hyper_delay: defines the delay in updating they hyper parameters, i.e., start updating hyper parameter only after hyper_delay number of gibbs sampling iterations. Usually, it specifies a burn-in period.
+    """
     def sample(self, hyper_delay=50):
-        assert self._state
+        assert self._topic_assignment
         
         # sample the total corpus
         for iter in xrange(self._maximum_iteration):

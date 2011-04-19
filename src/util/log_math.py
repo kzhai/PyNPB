@@ -14,6 +14,8 @@ def log_normalize(distribution):
     return distribution
 
 # sample a key from a dictionary using the values as probabilities (unnormalized)
+# @param dist: defines a probability distribution, the probabilities need NOT to be normalized at all
+# @return: a sample drawn from the given distribution
 def log_sample(dist):
     cutoff = random()
     dist = log_normalize(dist)

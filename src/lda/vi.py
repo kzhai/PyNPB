@@ -26,10 +26,12 @@ class VariationalInference(object):
         self._maximum_iteration = 100
         self._converge = 0.00001
         
-    # num_topics: the number of topics
-    # data: a defaultdict(FreqDist) data type, first indexed by doc id then indexed by term id
-    # take note: words are not terms, they are repeatable and thus might be not unique
-    def _initialize(self, num_topics, data):
+    """
+    @param num_topics: the number of topics
+    @param data: a defaultdict(FreqDist) data type, first indexed by doc id then indexed by term id
+    take note: words are not terms, they are repeatable and thus might be not unique
+    """
+    def _initialize(self, data, num_topics=10):
         # initialize the total number of topics.
         self._K = num_topics
         
@@ -169,13 +171,14 @@ class VariationalInference(object):
 
         return likelihood
 
-    # doc: a dict data type represents the content of a document, indexed by term_id
-    # phi_table: a defaultdict(dict) data type represents the phi matrix, in size of V-by-K, first indexed by term_id, then indexed by topic_id
-    # beta: a defaultdict(dict) data type represents the beta mtarix, in size of V-by-K, first indexed by term_id, then indexed by topic_id
-    # gamma: a defaultdict(dict) data type represents the gamma matrix, in size of D-by-K, first indexed by doc_id, then indexed by topic_id
-    # alpha: a dict data type represents the alpha vector, in size of K, indexed by topic_id
-    # doc, beta, gamma and alpha value will not be modified
-    # however, phi_table will be updated during this function
+    """
+    @param doc: a dict data type represents the content of a document, indexed by term_id
+    @param phi_table: a defaultdict(dict) data type represents the phi matrix, in size of V-by-K, first indexed by term_id, then indexed by topic_id
+    @param beta: a defaultdict(dict) data type represents the beta mtarix, in size of V-by-K, first indexed by term_id, then indexed by topic_id
+    @param gamma: a defaultdict(dict) data type represents the gamma matrix, in size of D-by-K, first indexed by doc_id, then indexed by topic_id
+    @param alpha: a dict data type represents the alpha vector, in size of K, indexed by topic_id
+    doc, beta, gamma and alpha value will not be modified, however, phi_table will be updated during this function
+    """
     def update_phi(self, doc, phi_table, beta, gamma, gamma_update):
         # initialize 
         phi_table.clear()
@@ -222,14 +225,15 @@ class VariationalInference(object):
         
         return gamma_update, phi_table, likelihood_phi
     
-    #@deprecated: please use update_phi instead, which includes a trick to compute the likelihood_phi
-    # doc: a dict data type represents the content of a document, indexed by term_id
-    # phi_table: a defaultdict(dict) data type represents the phi matrix, in size of V-by-K, first indexed by term_id, then indexed by topic_id
-    # beta: a defaultdict(dict) data type represents the beta mtarix, in size of V-by-K, first indexed by term_id, then indexed by topic_id
-    # gamma: a defaultdict(dict) data type represents the gamma matrix, in size of D-by-K, first indexed by doc_id, then indexed by topic_id
-    # alpha: a dict data type represents the alpha vector, in size of K, indexed by topic_id
-    # doc, beta, gamma and alpha value will not be modified
-    # however, phi_table will be updated during this function
+    """
+    @deprecated: please use update_phi instead, which includes a trick to compute the likelihood_phi
+    @param doc: a dict data type represents the content of a document, indexed by term_id
+    @param phi_table: a defaultdict(dict) data type represents the phi matrix, in size of V-by-K, first indexed by term_id, then indexed by topic_id
+    @param beta: a defaultdict(dict) data type represents the beta mtarix, in size of V-by-K, first indexed by term_id, then indexed by topic_id
+    @param gamma: a defaultdict(dict) data type represents the gamma matrix, in size of D-by-K, first indexed by doc_id, then indexed by topic_id
+    @param alpha: a dict data type represents the alpha vector, in size of K, indexed by topic_id
+    doc, beta, gamma and alpha value will not be modified, however, phi_table will be updated during this function
+    """
     def update_gamma(self, doc, phi_table, beta, gamma, gamma_update):
         # initialize 
         clear_phi_table = True
@@ -298,12 +302,13 @@ class VariationalInference(object):
         
         return gamma_update, phi_table, likelihood_phi
         
-    # doc: a dict data type represents the content of a document, indexed by term_id
-    # phi_table: a defaultdict(dict) data type represents the phi matrix, in size of V-by-K, first indexed by term_id, then indexed by topic_id
-    # beta_normalize_factor: a dict data type represents the beta normalize factor
-    # update_beta: a defaultdict(dict) data type represents the beta matrix, in size of V-by-K, first indexed by term_id, then indexed by topic_id
-    # however, beta_normalize_factor and update_beta will be updated during this function
-    # take note that the beta value is not normalized, to normalize the beta, please call normalize_beta
+    """
+    @param doc: a dict data type represents the content of a document, indexed by term_id
+    @param phi_table: a defaultdict(dict) data type represents the phi matrix, in size of V-by-K, first indexed by term_id, then indexed by topic_id
+    @param beta_normalize_factor: a dict data type represents the beta normalize factor
+    @param update_beta: a defaultdict(dict) data type represents the beta matrix, in size of V-by-K, first indexed by term_id, then indexed by topic_id
+    however, beta_normalize_factor and update_beta will be updated during this function, take note that the beta value is not normalized, to normalize the beta, please call normalize_beta
+    """
     def update_beta(self, doc, phi_table, beta_normalize_factor, beta):
         # summ up the phi contribution to beta matrix
         for term in doc.keys():
@@ -326,10 +331,11 @@ class VariationalInference(object):
 
         return beta, beta_normalize_factor
     
-    # beta: a defaultdict(dict) data type represents the beta matrix, in size of V-by-K, first indexed by term_id, then indexed by topic_id
-    # beta_normalize_factor: a dict data type represents the beta normalize factor
-    # doc and phi_table will not be modified
-    # beta will be updated during this function
+    """
+    @param beta: a defaultdict(dict) data type represents the beta matrix, in size of V-by-K, first indexed by term_id, then indexed by topic_id
+    @param beta_normalize_factor: a dict data type represents the beta normalize factor
+    doc and phi_table will not be modified, however, beta will be updated during this function
+    """
     def normalize_beta(self, beta_normalize_factor, update_beta):
         # summ up the phi contribution to beta matrix
         for term in update_beta.keys():
@@ -340,10 +346,11 @@ class VariationalInference(object):
                 
         return update_beta
 
-    # alpha_vector: a dict data type represents dirichlet prior, indexed by topic_id
-    # alpha_sufficient_statistics: a dict data type represents alpha sufficient statistics for alpha updating, indexed by topic_id
-    # alpha_sufficient_statistics value will not be modified
-    # however, alpha_vector will be updated during this function
+    """
+    @param alpha_vector: a dict data type represents dirichlet prior, indexed by topic_id
+    @param alpha_sufficient_statistics: a dict data type represents alpha sufficient statistics for alpha updating, indexed by topic_id
+    alpha_sufficient_statistics value will not be modified, however, alpha_vector will be updated during this function
+    """
     def update_alpha(self, alpha_vector, alpha_sufficient_statistics):
         alpha_vector_update = {}
         alpha_gradient = {}
@@ -442,5 +449,5 @@ if __name__ == "__main__":
     print d
     
     lda = VariationalInference();
-    lda._initialize(3, d);
+    lda._initialize(d, 3);
     lda.learning();

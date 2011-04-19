@@ -15,7 +15,7 @@ class CollapsedGibbsSampling:
         self._docs = defaultdict(FreqDist)
         self._topics = defaultdict(FreqDist)
         
-        self._state = None
+        self._topic_assignment = None
 
         # set the document smooth factor
         self._alpha = 0.1
@@ -40,7 +40,7 @@ class CollapsedGibbsSampling:
         self._K = num_topics
         
         self._alpha_sum = self._alpha * self._K
-        self._state = defaultdict(dict)
+        self._topic_assignment = defaultdict(dict)
     
         self._data = data
         
@@ -54,7 +54,7 @@ class CollapsedGibbsSampling:
                 self._vocab.add(self._data[doc][position])
             
                 # initialize the state to unassigned
-                self._state[doc][position] = -1
+                self._topic_assignment[doc][position] = -1
         self._V = len(self._vocab)
         
         #self._beta_sum = float(self._V) * self._beta
@@ -131,13 +131,13 @@ class CollapsedGibbsSampling:
     # this method samples the word at position in document, by covering that word and compute its new topic distribution
     # doc: a document id
     # position: the position in doc, ranged as range(self._data[doc])
-    # in the end, both self._state, self._docs and self._topics will change
+    # in the end, both self._topic_assignment, self._docs and self._topics will change
     def sample_word(self, doc, position):
         # retrieve the word
         word = self._data[doc][position]
     
         # get the old topic assignment to the word in doc at position
-        old_topic = self._state[doc][position]
+        old_topic = self._topic_assignment[doc][position]
         if old_topic != -1:
             # this word already has a valid topic assignment, decrease the topic|doc counts and word|topic counts by covering up that word
             self.change_count(doc, word, old_topic, -1)
@@ -148,7 +148,7 @@ class CollapsedGibbsSampling:
         new_topic = log_sample(probs)
 
         self.change_count(doc, word, new_topic, 1)
-        self._state[doc][position] = new_topic
+        self._topic_assignment[doc][position] = new_topic
 
     # this methods change the count of topic|doc and word|topic by delta
     # this values will be used in the computation
@@ -158,7 +158,7 @@ class CollapsedGibbsSampling:
 
     # sample the corpus to train the parameters
     def sample(self, hyper_delay=50):
-        assert self._state
+        assert self._topic_assignment
         for iter in xrange(self._maximum_iteration):
             for doc in self._data:
                 for position in xrange(len(self._data[doc])):
