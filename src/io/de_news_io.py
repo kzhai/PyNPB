@@ -1,14 +1,14 @@
 from glob import glob;
-from collections import defaultdict;
-from nltk.probability import FreqDist;
+
 
 def parse_de_news_gs(glob_expression, lang="english", doc_limit= -1, max_df_percentage = 1.0, min_df_percentage = 0.0):
     docs = parse_de_news(glob_expression, lang, doc_limit, max_df_percentage, min_df_percentage);
     return docs
 
 def parse_de_news_vi(glob_expression, lang="english", doc_limit= -1, max_df_percentage = 1.0, min_df_percentage = 0.0):
+    from util.type_converter import dict_list_2_dict_freqdist
     docs = parse_de_news(glob_expression, lang, doc_limit, max_df_percentage, min_df_percentage);
-    return convert_format_gs2vi(docs)
+    return dict_list_2_dict_freqdist(docs)
 
 # compute the df counts of the given corpus
 # max_df_percentage: a value between 0 to 1, upper cutoff for df is computed as document number times max_df_percentage
@@ -21,6 +21,7 @@ def cutoff_df_de_news(glob_expression, doc_limit= -1, max_df_percentage = 1.0, m
     files = glob(glob_expression)
     print("Found %i files" % len(files))
     
+    from nltk.probability import FreqDist;
     df = FreqDist()
     doc_count = 0
     
@@ -110,32 +111,15 @@ def parse_de_news(glob_expression, lang="english", doc_limit= -1, max_df_percent
     
     return docs
 
-# this method convert a corpus from gibbs sampling format into proper format for variational inference format
-# output a defaultdict(dict) data type, first indexed by the document id, then indexed by the unique tokens
-# corpus: a dict data type, indexed by document id, corresponding value is a list of words (not necessarily unique from each other)
-def convert_format_gs2vi(corpus):
-    docs = defaultdict(dict)
-    
-    for doc in corpus.keys():
-        content = {}
-        for term in corpus[doc]:
-            if term in content.keys():
-                content[term] = content[term] + 1
-            else:
-                content[term] = 1
-        docs[doc] = content
-    
-    return docs
-
 if __name__ == "__main__":
+    from util.type_converter import dict_list_2_dict_freqdist
+    
     data_en = parse_de_news("/windows/d/Data/de-news/txt/*.en.txt", "english",
                   1, 0.4, 0.0001)
-    #print data_en
-    
-    data_en = convert_format_gs2vi(data_en)
+    data_en = dict_list_2_dict_freqdist(data_en)
     data_de = parse_de_news("/windows/d/Data/de-news/txt/*.de.txt", "german",
                   1, 0.4, 0.0001)
-    data_de = convert_format_gs2vi(data_de)
+    data_de = dict_list_2_dict_freqdist(data_de)
     print len(data_en), "\t", len(data_de)
     
     from io.io_adapter import map_corpus

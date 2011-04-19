@@ -27,7 +27,7 @@ class VariationalInference(object):
         self._converge = 0.00001
         
     # num_topics: the number of topics
-    # data: a defaultdict(dict) data type, first indexed by doc id, then indexed by term id, the value is the appearance of that term in that doc.
+    # data: a defaultdict(FreqDist) data type, first indexed by doc id then indexed by term id
     # take note: words are not terms, they are repeatable and thus might be not unique
     def _initialize(self, num_topics, data):
         # initialize the total number of topics.
@@ -111,9 +111,7 @@ class VariationalInference(object):
         for doc in self._data.keys():
             
             # compute the total number of words
-            total_word_count = 0
-            for counts in self._data[doc].values():
-                total_word_count += counts
+            total_word_count = self._data[doc].N()
                 
             # initialize the sum of gamma values 
             sum_gamma = 0.0

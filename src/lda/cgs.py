@@ -162,10 +162,15 @@ class CollapsedGibbsSampling:
         self._topics[topic].inc(word, delta)
 
     # sample the corpus to train the parameters
+    # @param hyper_delay: defines the delay in updating they hyper parameters, i.e., start updating hyper parameter only after hyper_delay number of gibbs sampling iterations. Usually, it specifies a burn-in period. 
     def sample(self, hyper_delay=50):
         assert self._state
+        
+        # sample the total corpus
         for iter in xrange(self._maximum_iteration):
+            # sample every document
             for doc in self._data:
+                # sample every word
                 for position in xrange(len(self._data[doc])):
                     self.sample_word(doc, position)
                     
