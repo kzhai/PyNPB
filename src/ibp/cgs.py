@@ -12,8 +12,8 @@ from util.log_math import log_sample
 
 class CollapsedGibbsSampling:
     def __init__(self):
-        self._docs = defaultdict(FreqDist)
-        self._topics = defaultdict(FreqDist)
+        self._doc_topics = defaultdict(FreqDist)
+        self._topic_words = defaultdict(FreqDist)
         
         self._topic_assignment = None
 
@@ -101,37 +101,37 @@ class CollapsedGibbsSampling:
         beta_sum = beta * self._V
 
         likelihood = 0.0
-        likelihood += gamma(alpha_sum) * len(self._docs)
-        likelihood -= gamma(alpha) * self._K * len(self._docs)
-        for ii in self._docs:
+        likelihood += gamma(alpha_sum) * len(self._doc_topics)
+        likelihood -= gamma(alpha) * self._K * len(self._doc_topics)
+        for ii in self._doc_topics:
             for jj in xrange(self._K):
-                likelihood += gamma(alpha + self._docs[ii][jj])
-            likelihood -= gamma(alpha_sum + self._docs[ii].N())
+                likelihood += gamma(alpha + self._doc_topics[ii][jj])
+            likelihood -= gamma(alpha_sum + self._doc_topics[ii].N())
       
             likelihood += gamma(beta_sum) * self._K
             likelihood -= gamma(beta) * self._V * self._K
-            for ii in self._topics:
+            for ii in self._topic_words:
                 for jj in self._vocab:
-                    likelihood += gamma(beta + self._topics[ii][jj])
-                likelihood -= gamma(beta_sum + self._topics[ii].N())
+                    likelihood += gamma(beta + self._topic_words[ii][jj])
+                likelihood -= gamma(beta_sum + self._topic_words[ii].N())
             
         return likelihood
 
     # compute the conditional distribution
     def prob(self, doc, word, topic):
-        val = log(self._docs[doc][topic] + self._alpha)
+        val = log(self._doc_topics[doc][topic] + self._alpha)
         # this is constant across a document, so we don't need to compute this term
-        # val -= log(self._docs[doc].N() + self._alpha_sum)
+        # val -= log(self._doc_topics[doc].N() + self._alpha_sum)
         
-        val += log(self._topics[topic][word] + self._beta)
-        val -= log(self._topics[topic].N() + self._V * self._beta)
+        val += log(self._topic_words[topic][word] + self._beta)
+        val -= log(self._topic_words[topic].N() + self._V * self._beta)
     
         return val
 
     # this method samples the word at position in document, by covering that word and compute its new topic distribution
     # doc: a document id
     # position: the position in doc, ranged as range(self._data[doc])
-    # in the end, both self._topic_assignment, self._docs and self._topics will change
+    # in the end, both self._topic_assignment, self._doc_topics and self._topic_words will change
     def sample_word(self, doc, position):
         # retrieve the word
         word = self._data[doc][position]
@@ -153,8 +153,8 @@ class CollapsedGibbsSampling:
     # this methods change the count of topic|doc and word|topic by delta
     # this values will be used in the computation
     def change_count(self, doc, word, topic, delta):
-        self._docs[doc].inc(topic, delta)
-        self._topics[topic].inc(word, delta)
+        self._doc_topics[doc].inc(topic, delta)
+        self._topic_words[topic].inc(word, delta)
 
     # sample the corpus to train the parameters
     def sample(self, hyper_delay=50):
@@ -169,8 +169,8 @@ class CollapsedGibbsSampling:
                 self.optimize_hyperparameters()
 
     def print_topics(self, num_words=15):
-        for ii in self._topics:
-            print("%i:%s\n" % (ii, "\t".join(self._topics[ii].keys()[:num_words])))
+        for ii in self._topic_words:
+            print("%i:%s\n" % (ii, "\t".join(self._topic_words[ii].keys()[:num_words])))
 
 if __name__ == "__main__":
     #d = create_data("/nfshomes/jbg/sentop/topicmod/data/de_news/txt/*.en.txt", doc_limit=50, delimiter="<doc")

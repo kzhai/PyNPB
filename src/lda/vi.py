@@ -444,7 +444,7 @@ class VariationalInference(object):
             
 if __name__ == "__main__":
     from io.de_news_io import parse_de_news_vi
-    d = parse_de_news_vi("../../data/de-news/*.en.txt", 'english', 1, 0.4, 0.0001)
+    d = parse_de_news_vi("../../data/de-news/*.en.txt", 'english', 100, 0.4, 0.0001)
     
     print d
     

@@ -25,14 +25,14 @@ def output_dict(py_dict, dir, title, index=-1):
         f.write(str(k) + "\t" + str(py_dict[k]) + "\n")
 
 if __name__ == "__main__":
-    from io.de_news_io import parse_de_news, list2dict
+    from io.de_news_io import parse_de_news
     
     data_en = parse_de_news("../../data/de-news/*.en.txt", "english", 1, 0.04, 1)
-    data_en = list2dict(data_en)
+#    data_en = list2dict(data_en)
     
     data_de = parse_de_news("/windows/d/Data/de-news/txt/*.de.txt", "german",
                   1, False)
-    data_de = list2dict(data_de)
+#    data_de = list2dict(data_de)
     
     alpha = {};
     alpha[1] = 14.53
