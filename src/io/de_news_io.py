@@ -1,6 +1,5 @@
 from glob import glob;
 
-
 def parse_de_news_gs(glob_expression, lang="english", doc_limit= -1, max_df_percentage = 1.0, min_df_percentage = 0.0):
     docs = parse_de_news(glob_expression, lang, doc_limit, max_df_percentage, min_df_percentage);
     return docs
