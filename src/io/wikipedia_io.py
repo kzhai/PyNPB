@@ -6,8 +6,8 @@ from string import rstrip;
 # this method reads in the data from wikipedia dataset/corpus
 # output a dict data type, indexed by the document id, value is a list of the words in that document, not necessarily unique
 def parse_wikipedia(glob_expression, lang="english", doc_limit= -1):
+    import codecs
     include_id_url = False
-    include_path = False
     
     from nltk.tokenize.treebank import TreebankWordTokenizer
     tokenizer = TreebankWordTokenizer()
@@ -25,14 +25,14 @@ def parse_wikipedia(glob_expression, lang="english", doc_limit= -1):
 
     from string import ascii_lowercase
     docs = {}
-    
+        
     dirs = glob(glob_expression)
     for jj in dirs:
         files = glob(jj + "/*")
         print("Found %i files in directory %s" % (len(files), jj))
         
         for ii in files:
-            text = open(ii).read().lower()
+            text = open(ii, mode="w", encoding="utf-8").lower()
             sections = text.split("\n</doc>\n")
             
             for section in sections:
@@ -79,8 +79,8 @@ def retrieve_doc_mappings(input_file):
         if len(titles)!=2:
             print "error in parsing the titles: ", line
         
-        titles_a.append(titles[0].strip())
-        titles_b.append(titles[1].strip())
+        titles_a.append(titles[0].strip().lower())
+        titles_b.append(titles[1].strip().lower())
         mapping_count=mapping_count+1
                 
     return titles_a, titles_b
@@ -92,22 +92,46 @@ def output_mapped_documents(titles, wiki_file, output_file):
     total_docs = 0;
     loaded_docs = 0;
     input = codecs.open(wiki_file, mode="r", encoding="utf-8")
+
     for line in input:
         total_docs = total_docs+1
         contents = line.split("\t")
         contents[0] = contents[0].strip()
         contents[1] = contents[1].strip()
-        
+
         if contents[0] in titles:
             loaded_docs = loaded_docs+1
-            output.write(str(titles.index(contents[0])) + "\t" + contents[1].strip()) + "\n"
-            #output_docs[titles_a.index(contents[0])] = contents[1].strip()
+            output.write(str(titles.index(contents[0])) + "\t" + contents[1].strip() + "\n")
             
         if total_docs%10000==0:
             print "output " + str(loaded_docs) + " mapped documents from " + str(total_docs) + " documents..."
+
+    print "successfully output " + str(loaded_docs) + " mapped documents from " + str(total_docs) + " documents..."
+
+"""
+
+"""
+def output_document_titles(wiki_file, output_file):
+    import codecs
+    
+    output = codecs.open(output_file, mode="w", encoding="utf-8")
+    total_docs = 0;
+    loaded_docs = 0;
+    input = codecs.open(wiki_file, mode="r", encoding="utf-8")
+
+    for line in input:
+        total_docs = total_docs+1
+        contents = line.split("\t")
+        contents[0] = contents[0].strip()
+        contents[1] = contents[1].strip()
+
+        output.write(contents[0] + "\n");
         
     print "successfully output " + str(loaded_docs) + " mapped documents from " + str(total_docs) + " documents..."
 
+"""
+
+"""
 def output_document_mappings(mapping_file_a, mapping_file_b, output_file):
     import codecs
     
@@ -273,19 +297,20 @@ def parse_data(corpus):
     
     return docs
 
-if __name__ == "__main__":    
+if __name__ == "__main__":
+    
      #parsed_docs = output_wikipedia("/windows/d/Data/enwiki/*", "/windows/d/Data/enwiki.txt", "english", -1)
      #print "parsed ", parsed_docs, " english documents in total..."
      
-     title_a, title_b = retrieve_doc_mappings("/windows/d/Data/en-de-wiki-mapping.txt")
-     
-     print len(title_a), len(title_b)
-    
-     output_mapped_documents(title_a, "/windows/d/Data/enwiki.txt", "/windows/d/Data/en-mapping-wiki.txt")
-#     output_mapped_documents(title_b, "/windows/d/Data/dewiki.txt", "/windows/d/Data/de-mapping-wiki.txt")
+     #parsed_docs = output_wikipedia("/windows/d/Data/dewiki/*", "/windows/d/Data/dewiki.txt", "german", -1)
+     #print "parsed ", parsed_docs, " english documents in total..."
 
+#    output_document_titles("/windows/d/Data/enwiki.txt", "/windows/d/Data/en-title.txt")
+#    output_document_titles("/windows/d/Data/dewiki.txt", "/windows/d/Data/de-title.txt")
+
+    title_a, title_b = retrieve_doc_mappings("/windows/d/Data/en-de-wiki-mapping.txt")
+     
+    print len(title_a), len(title_b)
     
-#    
-#    parsed_docs = output_wikipedia("/windows/d/Data/dewiki/*", "/windows/d/Data/dewiki.txt", "german",
-#                  -1, 0.4, 0.0001)
-#    print "parsed ", parsed_docs, " german documents in total..."
+    output_mapped_documents(title_a, "/windows/d/Data/enwiki.txt", "/windows/d/Data/en-mapping-wiki.txt")
+    output_mapped_documents(title_b, "/windows/d/Data/dewiki.txt", "/windows/d/Data/de-mapping-wiki.txt")
