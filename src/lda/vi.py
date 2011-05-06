@@ -1,5 +1,4 @@
-# Author: Ke Zhai
-# Email: zhaike@cs.umd.edu
+__author__ = 'Ke Zhai (zhaike@cs.umd.edu)'
 
 from collections import defaultdict;
 from math import log, exp, fabs, pow, isnan, isinf;

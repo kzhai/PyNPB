@@ -25,6 +25,33 @@ def output_mapped_documents(input_file, output_file):
 
     print "successfully output " + str(loaded_docs) + " mapped documents from " + str(total_docs) + " documents..."
 
+def lgammln(xx):
+  """
+  Returns the gamma function of xx.
+  Gamma(z) = Integral(0,infinity) of t^(z-1)exp(-t) dt.
+  (Adapted from: Numerical Recipies in C.)
+  
+  Usage:   lgammln(xx)
+  
+  Copied from stats.py by strang@nmr.mgh.harvard.edu
+  """
+  
+  from math import log, exp
+
+  coeff = [76.18009173, -86.50532033, 24.01409822, -1.231739516,
+           0.120858003e-2, -0.536382e-5]
+  x = xx - 1.0
+  tmp = x + 5.5
+  tmp = tmp - (x+0.5)*log(tmp)
+  ser = 1.0
+  for j in range(len(coeff)):
+      x = x + 1
+      ser = ser + coeff[j]/x
+  return -tmp + log(2.50662827465*ser)
+
+
 if __name__ == "__main__":
-     output_mapped_documents("/windows/d/Data/en-mapping-wiki.txt", "/windows/d/Data/en-mapping-wiki2.txt")
-     output_mapped_documents("/windows/d/Data/de-mapping-wiki.txt", "/windows/d/Data/de-mapping-wiki2.txt")
+#     output_mapped_documents("/windows/d/Data/en-mapping-wiki.txt", "/windows/d/Data/en-mapping-wiki2.txt")
+#     output_mapped_documents("/windows/d/Data/de-mapping-wiki.txt", "/windows/d/Data/de-mapping-wiki2.txt")
+    from scipy.special import gamma, psi, gammaln, polygamma
+    print lgammln(10), gammaln(10)

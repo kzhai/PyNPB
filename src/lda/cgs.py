@@ -37,16 +37,16 @@ class CollapsedGibbsSampling:
     @param data: a dict data type, indexed by document id, value is a list of words in that document, not necessarily be unique
     """
     def _initialize(self, data, num_topics=10):
-        """define the counts over different topics for all documents, first indexed by doc id, the indexed by topic id"""
+        #define the counts over different topics for all documents, first indexed by doc id, the indexed by topic id
         self._doc_topics = defaultdict(FreqDist)
-        """define the counts over words for all topics, first indexed by topic id, then indexed by token id"""
+        #define the counts over words for all topics, first indexed by topic id, then indexed by token id
         self._topic_words = defaultdict(FreqDist)
-        """define the topic assignment for every word in every document, first indexed by doc id, then indexed by word position"""
+        #define the topic assignment for every word in every document, first indexed by doc id, then indexed by word position
         self._topic_assignment = defaultdict(dict)
         
         self._K = num_topics
         
-        """initialize a K-dimensional vector, valued at 1/K"""
+        #initialize a K-dimensional vector, valued at 1/K
         #self._alpha = []
         self._alpha_sum = self._alpha * self._K
         #for k in xrange(self._K):
@@ -57,6 +57,7 @@ class CollapsedGibbsSampling:
         #self._alpha_sum = self._alpha * self._K
     
         self._data = data
+        #define the total number of document
         self._D = len(data)
     
         # initialize the vocabulary, i.e. a list of distinct tokens.
@@ -114,35 +115,32 @@ class CollapsedGibbsSampling:
 
     """
     compute the log-likelihood of the model
-    @bug: compute the log-likelihood
     """
     def compute_likelihood(self, alpha, beta):
         #assert len(alpha)==self._K
+        assert len(self._doc_topics)==self._D
         
         alpha_sum = alpha * self._K
         beta_sum = beta * self._V
 
         likelihood = 0.0
-        for k in xrange(self._K):
-            #likelihood-=gamma(alpha[k]) * len(self._doc_topics)
-            likelihood-=gamma(alpha) * len(self._doc_topics)
-            #alpha_sum += alpha[k]
+        # compute the log likelihood of the document
+        likelihood += gammaln(alpha_sum) * len(self._data)
+        likelihood -= gammaln(alpha) * self._K * len(self._data)
            
-        likelihood += gamma(alpha_sum) * len(self._doc_topics)
-        #likelihood -= gamma(alpha) * self._K * len(self._doc_topics)
         for ii in self._doc_topics.keys():
             for jj in xrange(self._K):
-                #likelihood += gamma(alpha[jj] + self._doc_topics[ii][jj])
-                likelihood += gamma(alpha + self._doc_topics[ii][jj])
-                
-            likelihood -= gamma(alpha_sum + self._doc_topics[ii].N())
-            likelihood += gamma(beta_sum) * self._K
-            likelihood -= gamma(beta) * self._V * self._K
+                likelihood += gammaln(alpha + self._doc_topics[ii][jj])                    
+            likelihood -= gammaln(alpha_sum + self._doc_topics[ii].N())
             
-            for ii in self._topic_words.keys():
-                for jj in self._vocab:
-                    likelihood += gamma(beta + self._topic_words[ii][jj])
-                likelihood -= gamma(beta_sum + self._topic_words[ii].N())
+        # compute the log likelihood of the topic
+        likelihood += gammaln(beta_sum) * self._K
+        likelihood -= gammaln(beta) * self._V * self._K
+            
+        for ii in self._topic_words.keys():
+            for jj in self._vocab:
+                likelihood += gammaln(beta + self._topic_words[ii][jj])
+            likelihood -= gammaln(beta_sum + self._topic_words[ii].N())
             
         return likelihood
 
@@ -156,7 +154,7 @@ class CollapsedGibbsSampling:
     def prob(self, doc, word, topic):
         #val = log(self._doc_topics[doc][topic] + self._alpha[topic])
         val = log(self._doc_topics[doc][topic] + self._alpha)
-        """this is constant across a document, so we don't need to compute this term"""
+        #this is constant across a document, so we don't need to compute this term
         # val -= log(self._doc_topics[doc].N() + self._alpha_sum)
         
         val += log(self._topic_words[topic][word] + self._beta)
@@ -172,24 +170,24 @@ class CollapsedGibbsSampling:
     def sample_word(self, doc, position):
         assert position >= 0 and position < len(self._data[doc])
         
-        """retrieve the word"""
+        #retrieve the word
         word = self._data[doc][position]
     
-        """get the old topic assignment to the word in doc at position"""
+        #get the old topic assignment to the word in doc at position
         old_topic = self._topic_assignment[doc][position]
         if old_topic != -1:
-            """this word already has a valid topic assignment, decrease the topic|doc counts and word|topic counts by covering up that word"""
+            #this word already has a valid topic assignment, decrease the topic|doc counts and word|topic counts by covering up that word
             self.change_count(doc, word, old_topic, -1)
 
-        """compute the topic probability of current word, given the topic assignment for other words"""
+        #compute the topic probability of current word, given the topic assignment for other words
         probs = [self.prob(doc, self._data[doc][position], x) for x in xrange(self._K)]
 
-        """sample a new topic out of a distribution according to probs"""
+        #sample a new topic out of a distribution according to probs
         new_topic = log_sample(probs)
 
-        """after we draw a new topic for that word, we will change the topic|doc counts and word|topic counts, i.e., add the counts back"""
+        #after we draw a new topic for that word, we will change the topic|doc counts and word|topic counts, i.e., add the counts back
         self.change_count(doc, word, new_topic, 1)
-        """assign the topic for the word of current document at current position"""
+        #assign the topic for the word of current document at current position
         self._topic_assignment[doc][position] = new_topic
 
     """
@@ -211,17 +209,17 @@ class CollapsedGibbsSampling:
     def sample(self, hyper_delay=50):
         assert self._topic_assignment
         
-        """sample the total corpus"""
+        #sample the total corpus
         for iter in xrange(self._maximum_iteration):
-            """sample every document"""
+            #sample every document
             for doc in self._data:
-                """sample every position"""
+                #sample every position
                 for position in xrange(len(self._data[doc])):
                     self.sample_word(doc, position)
                     
             print("iteration %i %f" % (iter, self.compute_likelihood(self._alpha, self._beta)))
-            if hyper_delay >= 0 and iter % hyper_delay == 0:
-                self.optimize_hyperparameters()
+            #if hyper_delay >= 0 and iter % hyper_delay == 0:
+            #    self.optimize_hyperparameters()
 
     def print_topics(self, num_words=15):
         for ii in self._topic_words:
