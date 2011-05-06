@@ -298,7 +298,6 @@ def parse_data(corpus):
     return docs
 
 if __name__ == "__main__":
-    
      #parsed_docs = output_wikipedia("/windows/d/Data/enwiki/*", "/windows/d/Data/enwiki.txt", "english", -1)
      #print "parsed ", parsed_docs, " english documents in total..."
      

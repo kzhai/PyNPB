@@ -1,10 +1,9 @@
 #!/usr/bin/pyhon
 
-# Original Author: Jordan Boyd-Graber
-# Email: jbg@umiacs.umd.edu
-
-# Modification: Ke Zhai
-# Email: zhaike@cs.umd.edu
+"""
+Original Author: Jordan Boyd-Graber (jbg@umiacs.umd.edu)
+Modification: Ke Zhai (zhaike@cs.umd.edu)
+"""
 
 from collections import defaultdict
 from math import log, exp
@@ -14,48 +13,49 @@ from scipy.special import gamma, psi, gammaln, polygamma
 from util.log_math import log_sample
 
 class CollapsedGibbsSampling:
-    def __init__(self):
+    def __init__(self, alpha=0.5, beta=0.1, 
+                 hyper_parameter_maximum_iteration=100, 
+                 gibbs_sampling_maximum_iteration=200):
         # set the document smooth factor
-        self._alpha = 0.5
+        self._alpha = alpha
         # set the vocabulary smooth factor
-        self._beta = 0.1
+        self._beta = beta
         
-        self._alpha_converge = 0.000001
-        self._alpha_maximum_iteration = 100
+        self._hyper_parameter_maximum_iteration = hyper_parameter_maximum_iteration
+        self._gibbs_sampling_maximum_iteration = gibbs_sampling_maximum_iteration
         
-        self._maximum_iteration = 200
-        self._converge = 0.00001
-
         # pending for further changing~
-        self._gamma_converge = 0.000001
-        self._gamma_maximum_iteration = 400
+        #self._hyper_parameter_converge_threshold = 0.000001
+        #self._variational_inference_converge_threshold = 0.00001
+        #self._gamma_converge_threshold = 0.000001
+        #self._gamma_maximum_iteration = 400
         
     """
     @param num_topics: desired number of topics
     @param data: a dict data type, indexed by document id, value is a list of words in that document, not necessarily be unique
     """
     def _initialize(self, data, num_topics=10):
-        #define the counts over different topics for all documents, first indexed by doc id, the indexed by topic id
+        # define the counts over different topics for all documents, first indexed by doc id, the indexed by topic id
         self._doc_topics = defaultdict(FreqDist)
-        #define the counts over words for all topics, first indexed by topic id, then indexed by token id
+        # define the counts over words for all topics, first indexed by topic id, then indexed by token id
         self._topic_words = defaultdict(FreqDist)
-        #define the topic assignment for every word in every document, first indexed by doc id, then indexed by word position
+        # define the topic assignment for every word in every document, first indexed by doc id, then indexed by word position
         self._topic_assignment = defaultdict(dict)
         
         self._K = num_topics
-        
+    
+        self._alpha_sum = self._alpha * self._K
+
         #initialize a K-dimensional vector, valued at 1/K
         #self._alpha = []
-        self._alpha_sum = self._alpha * self._K
         #for k in xrange(self._K):
         #    self._alpha.append(random() / self._K)
         #    self._alpha_sum = self._alpha_sum + self._alpha[k]
         #print self._alpha
         
-        #self._alpha_sum = self._alpha * self._K
-    
+        # define the input data
         self._data = data
-        #define the total number of document
+        # define the total number of document
         self._D = len(data)
     
         # initialize the vocabulary, i.e. a list of distinct tokens.
@@ -70,8 +70,6 @@ class CollapsedGibbsSampling:
                 
         self._V = len(self._vocab)
         
-        #self._beta_sum = float(self._V) * self._beta
-
     """
     
     """
@@ -79,20 +77,20 @@ class CollapsedGibbsSampling:
         rawParam = [log(self._alpha), log(self._beta)]
 
         for ii in xrange(samples):
-            lp_old = self.compute_likelihood(self._alpha, self._beta)
-            lp_new = log(random()) + lp_old
-            print("OLD: %f\tNEW: %f at (%f, %f)" % (lp_old, lp_new, self._alpha, self._beta))
+            log_likelihood_old = self.compute_likelihood(self._alpha, self._beta)
+            log_likelihood_new = log(random()) + log_likelihood_old
+            print("OLD: %f\tNEW: %f at (%f, %f)" % (log_likelihood_old, log_likelihood_new, self._alpha, self._beta))
 
             l = [x - random() * step for x in rawParam]
             r = [x + step for x in rawParam]
 
-            for jj in xrange(100):
+            for jj in xrange(self._hyper_parameter_maximum_iteration):
                 rawParamNew = [l[x] + random() * (r[x] - l[x]) for x in xrange(len(rawParam))]
-                trial_alpha, trial_lambda = [exp(x) for x in rawParamNew]
-                lp_test = self.compute_likelihood(trial_alpha, trial_lambda)
-                #print("TRYING: %f (need %f) at (%f, %f)" % (lp_test - lp_old, lp_new - lp_old, trial_alpha, trial_lambda))
+                trial_alpha, trial_beta = [exp(x) for x in rawParamNew]
+                lp_test = self.compute_likelihood(trial_alpha, trial_beta)
+                #print("TRYING: %f (need %f) at (%f, %f)" % (lp_test - log_likelihood_old, log_likelihood_new - log_likelihood_old, trial_alpha, trial_beta))
 
-                if lp_test > lp_new:
+                if lp_test > log_likelihood_new:
                     print(jj)
                     self._alpha = exp(rawParamNew[0])
                     self._beta = exp(rawParamNew[1])
@@ -116,7 +114,7 @@ class CollapsedGibbsSampling:
     """
     def compute_likelihood(self, alpha, beta):
         #assert len(alpha)==self._K
-        assert len(self._doc_topics)==self._D
+        assert len(self._doc_topics) == self._D
         
         alpha_sum = alpha * self._K
         beta_sum = beta * self._V
@@ -208,7 +206,7 @@ class CollapsedGibbsSampling:
         assert self._topic_assignment
         
         #sample the total corpus
-        for iter in xrange(self._maximum_iteration):
+        for iter in xrange(self._gibbs_sampling_maximum_iteration):
             #sample every document
             for doc in self._data:
                 #sample every position

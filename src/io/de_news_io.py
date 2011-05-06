@@ -1,17 +1,23 @@
 from glob import glob;
 
+"""
+"""
 def parse_de_news_gs(glob_expression, lang="english", doc_limit= -1, max_df_percentage = 1.0, min_df_percentage = 0.0):
     docs = parse_de_news(glob_expression, lang, doc_limit, max_df_percentage, min_df_percentage);
     return docs
 
+"""
+"""
 def parse_de_news_vi(glob_expression, lang="english", doc_limit= -1, max_df_percentage = 1.0, min_df_percentage = 0.0):
     from util.type_converter import dict_list_2_dict_freqdist
     docs = parse_de_news(glob_expression, lang, doc_limit, max_df_percentage, min_df_percentage);
     return dict_list_2_dict_freqdist(docs)
 
-# compute the df counts of the given corpus
-# max_df_percentage: a value between 0 to 1, upper cutoff for df is computed as document number times max_df_percentage
-# min_df_percentage: a value between 0 to 1, lower cutoff for df is computed as document number times min_df_percentage
+"""
+compute the df counts of the given corpus
+@param max_df_percentage: a value between 0 to 1, upper cutoff for df is computed as document number times max_df_percentage
+@param min_df_percentage: a value between 0 to 1, lower cutoff for df is computed as document number times min_df_percentage
+"""
 def cutoff_df_de_news(glob_expression, doc_limit= -1, max_df_percentage = 1.0, min_df_percentage = 0.0):
     from nltk.tokenize.treebank import TreebankWordTokenizer
     tokenizer = TreebankWordTokenizer()
@@ -55,9 +61,11 @@ def cutoff_df_de_news(glob_expression, doc_limit= -1, max_df_percentage = 1.0, m
 
     return filtered_words
 
-# this method reads in the data from de-news dataset/corpus
-# output a dict data type, indexed by the document id, value is a list of the words in that document, not necessarily unique
-# this format is generally used for gibbs sampling
+"""
+this method reads in the data from de-news dataset/corpus
+output a dict data type, indexed by the document id, value is a list of the words in that document, not necessarily unique
+this format is generally used for gibbs sampling
+"""
 def parse_de_news(glob_expression, lang="english", doc_limit= -1, max_df_percentage = 1.0, min_df_percentage = 0.0):
     include_title = False
     include_path = False

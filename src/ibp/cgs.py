@@ -25,14 +25,14 @@ class CollapsedGibbsSampling:
         self._alpha_update_decay_factor = 0.9
         self._alpha_maximum_decay = 10
         
-        self._alpha_converge = 0.000001
-        self._alpha_maximum_iteration = 100
+        self._hyper_parameter_converge_threshold = 0.000001
+        self._hyper_parameter_maximum_iteration = 100
         
-        self._maximum_iteration = 200
-        self._converge = 0.00001
+        self._gibbs_sampling_maximum_iteration = 200
+        self._variational_inference_converge_threshold = 0.00001
 
         # pending for further changing~
-        self._gamma_converge = 0.000001
+        self._gamma_converge_threshold = 0.000001
         self._gamma_maximum_iteration = 400
         
     # data: a dict data type, indexed by document id, value is a list of words in that document, not necessarily be unique
@@ -159,7 +159,7 @@ class CollapsedGibbsSampling:
     # sample the corpus to train the parameters
     def sample(self, hyper_delay=50):
         assert self._topic_assignment
-        for iter in xrange(self._maximum_iteration):
+        for iter in xrange(self._gibbs_sampling_maximum_iteration):
             for doc in self._data:
                 for position in xrange(len(self._data[doc])):
                     self.sample_word(doc, position)

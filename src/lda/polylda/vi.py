@@ -15,14 +15,14 @@ class VariationalInference(object):
     # take note: words are not terms, they are repeatable and thus might be not unique
     def __init__(self):
         # initialize the iteration parameters
-        self._gamma_converge = 0.00001
+        self._gamma_converge_threshold = 0.00001
         self._gamma_maximum_iteration = 500
-        self._alpha_converge = 0.00001
-        self._alpha_maximum_iteration = 100
+        self._hyper_parameter_converge_threshold = 0.00001
+        self._hyper_parameter_maximum_iteration = 100
         self._alpha_update_decay_factor = 0.9
         self._alpha_maximum_decay = 10
-        self._maximum_iteration = 500
-        self._converge = 0.00001
+        self._gibbs_sampling_maximum_iteration = 500
+        self._variational_inference_converge_threshold = 0.00001
     
     def _initialize(self, num_topics, data_en, data_de):
         # initialize the total number of topics.
@@ -178,7 +178,7 @@ class VariationalInference(object):
                     
                 keep_going = False
                 for k in range(self._K):
-                    if abs((gamma_update[k] - gamma[k]) / gamma[k]) > self._gamma_converge:
+                    if abs((gamma_update[k] - gamma[k]) / gamma[k]) > self._gamma_converge_threshold:
                         keep_going = True
                         break
 
@@ -400,7 +400,7 @@ class VariationalInference(object):
 
         decay = 0
         
-        for alpha_iteration in range(self._alpha_maximum_iteration):
+        for alpha_iteration in range(self._hyper_parameter_maximum_iteration):
             sum_g_h = 0.0
             sum_1_h = 0.0
             
@@ -451,7 +451,7 @@ class VariationalInference(object):
             keep_going = False
             for k in range(self._K):
                 alpha_sum += alpha_vector_update[k]
-                if abs((alpha_vector_update[k] - alpha_vector[k]) / alpha_vector[k]) >= self._alpha_converge:
+                if abs((alpha_vector_update[k] - alpha_vector[k]) / alpha_vector[k]) >= self._hyper_parameter_converge_threshold:
                     keep_going = True
             
             # update the alpha vector
@@ -466,13 +466,13 @@ class VariationalInference(object):
     def learning(self):
         old_likelihood = 0.0
         
-        for i in range(self._maximum_iteration):
+        for i in range(self._gibbs_sampling_maximum_iteration):
             new_likelihood = self.inference()
             
             if i%50==0:
                 print "em iteration is ", (i+1), " likelihood is ", new_likelihood
             
-            if abs((new_likelihood - old_likelihood)/old_likelihood) < self._converge:
+            if abs((new_likelihood - old_likelihood)/old_likelihood) < self._variational_inference_converge_threshold:
                 break
             
             old_likelihood = new_likelihood

@@ -10,20 +10,26 @@ from scipy.special import psi, gammaln, polygamma;
 # this is a python implementation of lda based on variational inference.
 # the algorithm follows the documentataion in Blei's paper "Latent Dirichlet Allocation"
 class VariationalInference(object):
-    def __init__(self):
-    #def __init__(self, gamma_converge=0.000001, gamma_maximum_iteration=400, alpha_converge=0.000001, alpha maximum_iteration=100, em_maximum_iteration = 5, em_converge = 0.00001):
+    def __init__(self, alpha_update_decay_factor=0.9, 
+                 alpha_maximum_decay=10, 
+                 gamma_converge_threshold=0.000001, 
+                 gamma_maximum_iteration=400, 
+                 hyper_parameter_converge_threshold = 0.000001, 
+                 hyper_parameter_maximum_iteration = 100, 
+                 variational_inference_converge_threshold = 0.00001,
+                 variational_inference_maximum_iteration = 100):
         # initialize the iteration parameters
-        self._alpha_update_decay_factor = 0.9
-        self._alpha_maximum_decay = 10
+        self._alpha_update_decay_factor = alpha_update_decay_factor
+        self._alpha_maximum_decay = alpha_maximum_decay
         
-        self._gamma_converge = 0.000001
-        self._gamma_maximum_iteration = 400
+        self._gamma_converge_threshold = gamma_converge_threshold
+        self._gamma_maximum_iteration = gamma_maximum_iteration
         
-        self._alpha_converge = 0.000001
-        self._alpha_maximum_iteration = 100
+        self._hyper_parameter_converge_threshold = hyper_parameter_converge_threshold
+        self._hyper_parameter_maximum_iteration = hyper_parameter_maximum_iteration
         
-        self._maximum_iteration = 100
-        self._converge = 0.00001
+        self._variational_inference_maximum_iteration = variational_inference_maximum_iteration
+        self._variational_inference_converge_threshold = variational_inference_converge_threshold
         
     """
     @param num_topics: the number of topics
@@ -135,7 +141,7 @@ class VariationalInference(object):
                 
                 keep_going = False
                 for k in range(self._K):
-                    if abs((gamma_update[k] - gamma[k]) / gamma[k]) > self._gamma_converge:
+                    if abs((gamma_update[k] - gamma[k]) / gamma[k]) > self._gamma_converge_threshold:
                         keep_going = True
                         break
 
@@ -362,7 +368,7 @@ class VariationalInference(object):
 
         decay = 0
         
-        for alpha_iteration in range(self._alpha_maximum_iteration):
+        for alpha_iteration in range(self._hyper_parameter_maximum_iteration):
             sum_g_h = 0.0
             sum_1_h = 0.0
             
@@ -413,7 +419,7 @@ class VariationalInference(object):
             keep_going = False
             for k in range(self._K):
                 alpha_sum += alpha_vector_update[k]
-                if abs((alpha_vector_update[k] - alpha_vector[k]) / alpha_vector[k]) >= self._alpha_converge:
+                if abs((alpha_vector_update[k] - alpha_vector[k]) / alpha_vector[k]) >= self._hyper_parameter_converge_threshold:
                     keep_going = True
             
             # update the alpha vector
@@ -428,15 +434,14 @@ class VariationalInference(object):
     def learning(self):
         old_likelihood = 0.0
         
-        for i in range(self._maximum_iteration):
+        for i in range(self._variational_inference_maximum_iteration):
             new_likelihood = self.inference()
             print "em iteration is ", (i+1), " likelihood is ", new_likelihood
             
-            if abs((new_likelihood - old_likelihood)/old_likelihood) < self._converge:
+            if abs((new_likelihood - old_likelihood)/old_likelihood) < self._variational_inference_converge_threshold:
                 break
             
             old_likelihood = new_likelihood
-            
             print "alpha vector is ", self._alpha
             
         print "learning finished..."
@@ -445,7 +450,7 @@ if __name__ == "__main__":
     from io.de_news_io import parse_de_news_vi
     d = parse_de_news_vi("../../data/de-news/*.en.txt", 'english', 100, 0.4, 0.0001)
     
-    print d
+    #print d
     
     lda = VariationalInference();
     lda._initialize(d, 3);
