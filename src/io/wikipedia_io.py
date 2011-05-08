@@ -166,7 +166,7 @@ def output_document_mappings(mapping_file_a, mapping_file_b, output_file):
         if contents[0] not in output_docs.keys():
             print "warning: document mapping for index " + contents[0] + " not found..."
         else:
-            output.write(contents[0] + "\t" + contents[1].strip())
+            output.write(output_docs[contents[0]] + "\t" + contents[1].strip() + "\n")
                     
         if loaded_docs%10000==0:
             print "load " + str(loaded_docs) + " mapped documents..."
@@ -298,18 +298,20 @@ def parse_data(corpus):
     return docs
 
 if __name__ == "__main__":
-     #parsed_docs = output_wikipedia("/windows/d/Data/enwiki/*", "/windows/d/Data/enwiki.txt", "english", -1)
+     #parsed_docs = output_wikipedia("../../data/wiki/enwiki/*", "../../data/wiki/enwiki.txt", "english", -1)
      #print "parsed ", parsed_docs, " english documents in total..."
      
-     #parsed_docs = output_wikipedia("/windows/d/Data/dewiki/*", "/windows/d/Data/dewiki.txt", "german", -1)
-     #print "parsed ", parsed_docs, " english documents in total..."
+     #parsed_docs = output_wikipedia("../../data/wiki/dewiki/*", "../../data/wiki/dewiki.txt", "german", -1)
+     #print "parsed ", parsed_docs, " german documents in total..."
 
-#    output_document_titles("/windows/d/Data/enwiki.txt", "/windows/d/Data/en-title.txt")
-#    output_document_titles("/windows/d/Data/dewiki.txt", "/windows/d/Data/de-title.txt")
+#    output_document_titles("../../data/wiki/enwiki.txt", "../../data/wiki/en-title.txt")
+#    output_document_titles("../../data/wiki/dewiki.txt", "../../data/wiki/de-title.txt")
 
-    title_a, title_b = retrieve_doc_mappings("/windows/d/Data/en-de-wiki-mapping.txt")
+    #title_a, title_b = retrieve_doc_mappings("../../data/wiki/mapping-en-de/en-de-title-mapping.txt")
      
-    print len(title_a), len(title_b)
+    #print len(title_a), len(title_b)
     
-    output_mapped_documents(title_a, "/windows/d/Data/enwiki.txt", "/windows/d/Data/en-mapping-wiki.txt")
-    output_mapped_documents(title_b, "/windows/d/Data/dewiki.txt", "/windows/d/Data/de-mapping-wiki.txt")
+    #output_mapped_documents(title_a, "../../data/wiki/mapping-en-de/enwiki.txt", "../../data/wiki/mapping-en-de/en-mapping-wiki.txt")
+    #output_mapped_documents(title_b, "../../data/wiki/mapping-en-de/dewiki.txt", "../../data/wiki/mapping-en-de/de-mapping-wiki.txt")
+    
+    output_document_mappings("../../data/wiki/mapping-en-de/en-doc.txt", "../../data/wiki/mapping-en-de/de-doc.txt", "../../data/wiki/en-de-doc.txt")

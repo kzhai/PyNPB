@@ -121,10 +121,10 @@ def parse_de_news(glob_expression, lang="english", doc_limit= -1, max_df_percent
 if __name__ == "__main__":
     from util.type_converter import dict_list_2_dict_freqdist
     
-    data_en = parse_de_news("/windows/d/Data/de-news/txt/*.en.txt", "english",
+    data_en = parse_de_news("../../data/de-news/txt/*.en.txt", "english",
                   1, 0.4, 0.0001)
     data_en = dict_list_2_dict_freqdist(data_en)
-    data_de = parse_de_news("/windows/d/Data/de-news/txt/*.de.txt", "german",
+    data_de = parse_de_news("../../data/de-news/txt/*.de.txt", "german",
                   1, 0.4, 0.0001)
     data_de = dict_list_2_dict_freqdist(data_de)
     print len(data_en), "\t", len(data_de)
@@ -132,8 +132,3 @@ if __name__ == "__main__":
     from io.io_adapter import map_corpus
     [data_en, data_de] = map_corpus(data_en, data_de)
     print len(data_en), "\t", len(data_de)
-    
-#lda.initialize(d)
-
-#lda.sample(100)
-#lda.print_topics()

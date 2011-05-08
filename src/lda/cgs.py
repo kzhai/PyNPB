@@ -1,8 +1,6 @@
-#!/usr/bin/pyhon
-
 """
-Original Author: Jordan Boyd-Graber (jbg@umiacs.umd.edu)
-Modification: Ke Zhai (zhaike@cs.umd.edu)
+@author: Jordan Boyd-Graber (jbg@umiacs.umd.edu)
+@author: Ke Zhai (zhaike@cs.umd.edu)
 """
 
 from collections import defaultdict
@@ -12,7 +10,17 @@ from nltk import FreqDist
 from scipy.special import gamma, psi, gammaln, polygamma
 from util.log_math import log_sample
 
+"""
+This is a python implementation of lda, based on collapsed Gibbs sampling, with hyper parameter updating.
+It only supports symmetric Dirichlet prior over the topic simplex.
+
+References:
+[1] T. L. Griffiths & M. Steyvers. Finding Scientific Topics. Proceedings of the National Academy of Sciences, 101, 5228-5235, 2004.
+"""
 class CollapsedGibbsSampling:
+    """
+    
+    """
     def __init__(self, alpha=0.5, beta=0.1, 
                  hyper_parameter_maximum_iteration=100, 
                  gibbs_sampling_maximum_iteration=200):
@@ -46,13 +54,6 @@ class CollapsedGibbsSampling:
     
         self._alpha_sum = self._alpha * self._K
 
-        #initialize a K-dimensional vector, valued at 1/K
-        #self._alpha = []
-        #for k in xrange(self._K):
-        #    self._alpha.append(random() / self._K)
-        #    self._alpha_sum = self._alpha_sum + self._alpha[k]
-        #print self._alpha
-        
         # define the input data
         self._data = data
         # define the total number of document
@@ -88,7 +89,6 @@ class CollapsedGibbsSampling:
                 rawParamNew = [l[x] + random() * (r[x] - l[x]) for x in xrange(len(rawParam))]
                 trial_alpha, trial_beta = [exp(x) for x in rawParamNew]
                 lp_test = self.compute_likelihood(trial_alpha, trial_beta)
-                #print("TRYING: %f (need %f) at (%f, %f)" % (lp_test - log_likelihood_old, log_likelihood_new - log_likelihood_old, trial_alpha, trial_beta))
 
                 if lp_test > log_likelihood_new:
                     print(jj)
@@ -113,7 +113,6 @@ class CollapsedGibbsSampling:
     compute the log-likelihood of the model
     """
     def compute_likelihood(self, alpha, beta):
-        #assert len(alpha)==self._K
         assert len(self._doc_topics) == self._D
         
         alpha_sum = alpha * self._K
@@ -148,7 +147,6 @@ class CollapsedGibbsSampling:
     @return: the probability value of the topic for that word in that document
     """
     def prob(self, doc, word, topic):
-        #val = log(self._doc_topics[doc][topic] + self._alpha[topic])
         val = log(self._doc_topics[doc][topic] + self._alpha)
         #this is constant across a document, so we don't need to compute this term
         # val -= log(self._doc_topics[doc].N() + self._alpha_sum)
@@ -214,15 +212,14 @@ class CollapsedGibbsSampling:
                     self.sample_word(doc, position)
                     
             print("iteration %i %f" % (iter, self.compute_likelihood(self._alpha, self._beta)))
-            #if hyper_delay >= 0 and iter % hyper_delay == 0:
-            #    self.optimize_hyperparameters()
+            if hyper_delay >= 0 and iter % hyper_delay == 0:
+                self.optimize_hyperparameters()
 
     def print_topics(self, num_words=15):
         for ii in self._topic_words:
             print("%i:%s\n" % (ii, "\t".join(self._topic_words[ii].keys()[:num_words])))
 
 if __name__ == "__main__":
-    #d = create_data("/nfshomes/jbg/sentop/topicmod/data/de_news/txt/*.en.txt", doc_limit=50, delimiter="<doc")
     from io.de_news_io import parse_de_news_gs
     d = parse_de_news_gs("../../data/de-news/*.en.txt", "english", 100, 0.3, 0.0001)
     

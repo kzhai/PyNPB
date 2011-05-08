@@ -1,4 +1,7 @@
-__author__ = 'Ke Zhai (zhaike@cs.umd.edu)'
+"""
+@author: Jordan Boyd-Graber (jbg@umiacs.umd.edu)
+@author: Ke Zhai (zhaike@cs.umd.edu)
+"""
 
 from collections import defaultdict;
 from math import log, exp, fabs, pow, isnan, isinf;
@@ -7,9 +10,16 @@ from random import random;
 from copy import deepcopy;
 from scipy.special import psi, gammaln, polygamma;
 
-# this is a python implementation of lda based on variational inference.
-# the algorithm follows the documentataion in Blei's paper "Latent Dirichlet Allocation"
+"""
+This is a python implementation of lda, based on variational inference, with hyper parameter updating.
+It supports asymmetric Dirichlet prior over the topic simplex.
+
+References:
+[1] D. Blei, A. Ng, and M. Jordan. Latent Dirichlet Allocation. Journal of Machine Learning Research, 3:993–1022, January 2003.
+"""
 class VariationalInference(object):
+    """
+    """
     def __init__(self, alpha_update_decay_factor=0.9, 
                  alpha_maximum_decay=10, 
                  gamma_converge_threshold=0.000001, 
@@ -44,7 +54,6 @@ class VariationalInference(object):
         self._alpha = {}
         for k in range(self._K):
             self._alpha[k] = random() / self._K
-        #print self._alpha
 
         # initialize the documents, key by the document path, value by a list of non-stop and tokenized words, with duplication.
         self._data = data
@@ -56,13 +65,10 @@ class VariationalInference(object):
         self._vocab = []
         for token_list in data.values():
             self._vocab += token_list
-        #print len(self._vocab)
-        #self._vocab = list(set(self._vocab))
         self._vocab = set(self._vocab)
         
         # initialize the size of the vocabulary, i.e. total number of distinct tokens.
         self._V = len(self._vocab)
-        #print self._V
         
         # initialize a D-by-K matrix gamma, valued at N_d/K
         self._gamma = defaultdict(dict)
@@ -71,7 +77,6 @@ class VariationalInference(object):
             for k in range(self._K):
                 temp[k] = self._alpha[k] + 1.0 * self._V / self._K;
             self._gamma[d] = temp
-        #print self._gamma
         
         # initialize a V-by-K matrix beta, valued at 1/V, subject to the sum over every row is 1
         self._beta = defaultdict(dict)
@@ -80,7 +85,6 @@ class VariationalInference(object):
             for k in range(self._K):
                 temp[k] = log(1.0 / self._V + random())
             self._beta[v] = temp
-        #print self._beta
 
     def inference(self):
         # initialize the likelihood factor
@@ -276,8 +280,6 @@ class VariationalInference(object):
                 # normalize the term
                 phi_table[term][k] -= phi_normalize_factor
                 
-                #print term, k, phi_table[term][k], phi_sum[k]
-                
                 if clear_phi_table:
                     phi_sum[k] = phi_table[term][k]
                 else:
@@ -449,8 +451,6 @@ class VariationalInference(object):
 if __name__ == "__main__":
     from io.de_news_io import parse_de_news_vi
     d = parse_de_news_vi("../../data/de-news/*.en.txt", 'english', 100, 0.4, 0.0001)
-    
-    #print d
     
     lda = VariationalInference();
     lda._initialize(d, 3);
