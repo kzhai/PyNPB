@@ -132,48 +132,94 @@ def output_document_titles(wiki_file, output_file):
 """
 
 """
-def output_document_mappings(mapping_file_a, mapping_file_b, output_file):
+def output_document_mappings(mapping_file_a, mapping_file_b, output_file, memory_efficient=False, document_window = 100000):
     import codecs
-    
-    output_docs = {}
+
     #title_a, title_b = retrieve_doc_mappings(title_mapping_file)
     output = codecs.open(output_file, mode="w", encoding="utf-8")
     
-    loaded_docs = 0
-    input = codecs.open(mapping_file_a, mode="r", encoding="utf-8")
-    for line in input:
-        contents = line.split("\t")
-        contents[0] = contents[0].strip()
-        contents[1] = contents[1].strip()
-        
-        loaded_docs = loaded_docs+1
-        #output.write(str(titles_a.index(contents[0])) + "\t" + contents[1].strip())
-        output_docs[contents[0]] = contents[1].strip()
+    if memory_efficient:
+        parsed_docs=0;
+        while True:
+            output_docs = {}
+            loaded_docs = 0;
+            input = codecs.open(mapping_file_a, mode="r", encoding="utf-8")
+            for line in input:
+                loaded_docs = loaded_docs+1;
+                if loaded_docs<=parsed_docs:
+                    continue;
+                
+                contents = line.split("\t")
+                contents[0] = contents[0].strip()
+                contents[1] = contents[1].strip()
+                output_docs[contents[0]] = contents[1].strip()
+
+                if loaded_docs%10000==0:
+                    print "load another 10000 documents..."
+                if loaded_docs==parsed_docs+document_window:
+                    break
+            print "successfully load " + str(loaded_docs-parsed_docs) + " mapped documents..."
             
-        if loaded_docs%10000==0:
-            print "load " + str(loaded_docs) + " mapped documents..."    
-    print "successfully load " + str(loaded_docs) + " mapped documents..."
-    
-    loaded_docs = 0;
-    input = codecs.open(mapping_file_b, mode="r", encoding="utf-8")
-    for line in input:
-        contents = line.split("\t")
-        contents[0] = contents[0].strip()
-        contents[1] = contents[1].strip()
+            if loaded_docs-parsed_docs==0:
+                break;
+            parsed_docs = loaded_docs;
+            
+            loaded_docs = 0;
+            input = codecs.open(mapping_file_b, mode="r", encoding="utf-8")
+            for line in input:
+                contents = line.split("\t")
+                contents[0] = contents[0].strip()
+                contents[1] = contents[1].strip()
+                
+                loaded_docs = loaded_docs+1
+                
+                if contents[0] in output_docs.keys():
+                    output.write(output_docs[contents[0]] + "\t" + contents[1].strip() + "\n")
+                            
+                if loaded_docs%10000==0:
+                    print "load " + str(loaded_docs) + " mapped documents..."
+            print "successfully load " + str(loaded_docs) + " mapped documents..."
+    else:
+        output_docs = {}
+        loaded_docs = 0
+        input = codecs.open(mapping_file_a, mode="r", encoding="utf-8")
+        for line in input:
+            contents = line.split("\t")
+            contents[0] = contents[0].strip()
+            contents[1] = contents[1].strip()
+            
+            loaded_docs = loaded_docs+1
+            #output.write(str(titles_a.index(contents[0])) + "\t" + contents[1].strip())
+            output_docs[contents[0]] = contents[1].strip()
+                
+            if loaded_docs%10000==0:
+                print "load " + str(loaded_docs) + " mapped documents..."    
+        print "successfully load " + str(loaded_docs) + " mapped documents..."
         
-        loaded_docs = loaded_docs+1
-        
-        if contents[0] not in output_docs.keys():
-            print "warning: document mapping for index " + contents[0] + " not found..."
-        else:
-            output.write(output_docs[contents[0]] + "\t" + contents[1].strip() + "\n")
-                    
-        if loaded_docs%10000==0:
-            print "load " + str(loaded_docs) + " mapped documents..."
-    print "successfully load " + str(loaded_docs) + " mapped documents..."
+        loaded_docs = 0;
+        input = codecs.open(mapping_file_b, mode="r", encoding="utf-8")
+        for line in input:
+            contents = line.split("\t")
+            contents[0] = contents[0].strip()
+            contents[1] = contents[1].strip()
+            
+            loaded_docs = loaded_docs+1
+            
+            if contents[0] not in output_docs.keys():
+                print "warning: document mapping for index " + contents[0] + " not found..."
+            else:
+                output.write(output_docs[contents[0]] + "\t" + contents[1].strip() + "\n")
+                        
+            if loaded_docs%10000==0:
+                print "load " + str(loaded_docs) + " mapped documents..."
+        print "successfully load " + str(loaded_docs) + " mapped documents..."
     
     print "successfully output the document mappings..."
     
+"""
+
+"""
+
 # this method reads in the document mapping from wikipedia dataset/corpus
 # output a dict data type, indexed by the document id, value is a list of the words in that document, not necessarily unique
 def output_title_mappings(input_file, output_file, lang="german"):
@@ -298,20 +344,20 @@ def parse_data(corpus):
     return docs
 
 if __name__ == "__main__":
-     #parsed_docs = output_wikipedia("../../data/wiki/enwiki/*", "../../data/wiki/enwiki.txt", "english", -1)
-     #print "parsed ", parsed_docs, " english documents in total..."
-     
-     #parsed_docs = output_wikipedia("../../data/wiki/dewiki/*", "../../data/wiki/dewiki.txt", "german", -1)
-     #print "parsed ", parsed_docs, " german documents in total..."
+    parsed_docs = output_wikipedia("../../data/wiki/enwiki/*", "../../data/wiki/enwiki.txt", "english", -1)
+    print "parsed ", parsed_docs, " english documents in total..."
+    
+    parsed_docs = output_wikipedia("../../data/wiki/dewiki/*", "../../data/wiki/dewiki.txt", "german", -1)
+    print "parsed ", parsed_docs, " german documents in total..."
 
 #    output_document_titles("../../data/wiki/enwiki.txt", "../../data/wiki/en-title.txt")
 #    output_document_titles("../../data/wiki/dewiki.txt", "../../data/wiki/de-title.txt")
 
-    #title_a, title_b = retrieve_doc_mappings("../../data/wiki/mapping-en-de/en-de-title-mapping.txt")
-     
-    #print len(title_a), len(title_b)
+    title_a, title_b = retrieve_doc_mappings("../../data/wiki/mapping-en-de/en-de-title-mapping.txt")
+    print len(title_a), len(title_b)
     
-    #output_mapped_documents(title_a, "../../data/wiki/mapping-en-de/enwiki.txt", "../../data/wiki/mapping-en-de/en-mapping-wiki.txt")
-    #output_mapped_documents(title_b, "../../data/wiki/mapping-en-de/dewiki.txt", "../../data/wiki/mapping-en-de/de-mapping-wiki.txt")
+    output_mapped_documents(title_a, "../../data/wiki/mapping-en-de/enwiki.txt", "../../data/wiki/mapping-en-de/en-mapping-wiki.txt")
+    output_mapped_documents(title_b, "../../data/wiki/mapping-en-de/dewiki.txt", "../../data/wiki/mapping-en-de/de-mapping-wiki.txt")
     
-    output_document_mappings("../../data/wiki/mapping-en-de/en-doc.txt", "../../data/wiki/mapping-en-de/de-doc.txt", "../../data/wiki/en-de-doc.txt")
+    #output_document_mappings("../../data/wiki/mapping-en-de/en-doc.txt", "../../data/wiki/mapping-en-de/de-doc.txt", "../../data/wiki/en-de-doc.txt")
+    output_document_mappings("en-doc.txt", "de-doc.txt", "en-de-doc.txt", True, 100000)

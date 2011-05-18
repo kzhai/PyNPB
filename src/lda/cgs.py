@@ -22,8 +22,9 @@ class CollapsedGibbsSampling:
     
     """
     def __init__(self, alpha=0.5, beta=0.1, 
+                 gibbs_sampling_maximum_iteration=200, 
                  hyper_parameter_maximum_iteration=100, 
-                 gibbs_sampling_maximum_iteration=200):
+                 hyper_parameter_sampling_interval=25):
         # set the document smooth factor
         self._alpha = alpha
         # set the vocabulary smooth factor
@@ -31,6 +32,8 @@ class CollapsedGibbsSampling:
         
         self._hyper_parameter_maximum_iteration = hyper_parameter_maximum_iteration
         self._gibbs_sampling_maximum_iteration = gibbs_sampling_maximum_iteration
+        self._hyper_parameter_sampling_interval = hyper_parameter_sampling_interval;
+        assert(self._hyper_parameter_sampling_interval>0);
         
         # pending for further changing~
         #self._hyper_parameter_converge_threshold = 0.000001
@@ -146,7 +149,7 @@ class CollapsedGibbsSampling:
     @param topic: topic id  
     @return: the probability value of the topic for that word in that document
     """
-    def prob(self, doc, word, topic):
+    def log_prob(self, doc, word, topic):
         val = math.log(self._doc_topics[doc][topic] + self._alpha)
         #this is constant across a document, so we don't need to compute this term
         # val -= math.log(self._doc_topics[doc].N() + self._alpha_sum)
@@ -174,7 +177,7 @@ class CollapsedGibbsSampling:
             self.change_count(doc, word, old_topic, -1)
 
         #compute the topic probability of current word, given the topic assignment for other words
-        probs = [self.prob(doc, self._data[doc][position], x) for x in xrange(self._K)]
+        probs = [self.log_prob(doc, self._data[doc][position], x) for x in xrange(self._K)]
 
         #sample a new topic out of a distribution according to probs
         new_topic = util.log_math.log_sample(probs)
@@ -200,7 +203,7 @@ class CollapsedGibbsSampling:
     sample the corpus to train the parameters
     @param hyper_delay: defines the delay in updating they hyper parameters, i.e., start updating hyper parameter only after hyper_delay number of gibbs sampling iterations. Usually, it specifies a burn-in period.
     """
-    def sample(self, hyper_delay=50):
+    def sample(self):
         assert self._topic_assignment
         
         #sample the total corpus
@@ -212,7 +215,7 @@ class CollapsedGibbsSampling:
                     self.sample_word(doc, position)
                     
             print("iteration %i %f" % (iter, self.compute_likelihood(self._alpha, self._beta)))
-            if hyper_delay >= 0 and iter % hyper_delay == 0:
+            if iter % self._hyper_parameter_sampling_interval == 0:
                 self.optimize_hyperparameters()
 
     def print_topics(self, num_words=15):
