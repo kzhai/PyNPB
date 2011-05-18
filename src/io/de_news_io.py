@@ -118,17 +118,50 @@ def parse_de_news(glob_expression, lang="english", doc_limit= -1, max_df_percent
     
     return docs
 
+"""
+this method is used for mapping documents correspondence between two corpora, usually for multilingual study, 
+output the corresponding corpus with exact one-to-one mapping on the document id's
+
+@param corpus_a: dict or defaultdict(dict) data type, indexed by document id
+@param corpus_b: dict or defaultdict(dict) data type, indexed by document id
+"""
+def map_corpus(corpus_a, corpus_b):
+    common_docs = (set(corpus_a.keys()) & set(corpus_b.keys()));
+   
+    for doc in corpus_a.keys():
+        if doc not in common_docs:
+            del corpus_a[doc]
+            
+    for doc in corpus_b.keys():
+        if doc not in common_docs:
+            del corpus_b[doc]
+            
+    return corpus_a, corpus_b
+
+"""
+this method outputs the mapped documents to an output file
+"""
+def output_mapped_documents(output_file, data_en, data_de):
+    [data_en, data_de] = map_corpus(data_en, data_de)
+    
+    import codecs
+    output = codecs.open(output_file, mode="w", encoding="utf-8")
+    
+    for key in data_en.keys():
+        output.write(data_en[key] + "\t" + data_de[key] + "\n")
+                    
+    print "successfully output the document mappings..."
+
 if __name__ == "__main__":
     from util.type_converter import dict_list_2_dict_freqdist
     
     data_en = parse_de_news("../../data/de-news/txt/*.en.txt", "english",
-                  1, 0.4, 0.0001)
+                  -1, 0.4, 0.0001)
     data_en = dict_list_2_dict_freqdist(data_en)
     data_de = parse_de_news("../../data/de-news/txt/*.de.txt", "german",
-                  1, 0.4, 0.0001)
+                  -1, 0.4, 0.0001)
     data_de = dict_list_2_dict_freqdist(data_de)
     print len(data_en), "\t", len(data_de)
     
-    from io.io_adapter import map_corpus
     [data_en, data_de] = map_corpus(data_en, data_de)
     print len(data_en), "\t", len(data_de)
