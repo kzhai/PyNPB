@@ -3,19 +3,18 @@
 @author: Ke Zhai (zhaike@cs.umd.edu)
 """
 
+import math, copy, random;
+import numpy, scipy;
+import util.log_math;
+
 from collections import defaultdict;
-from math import log, exp, fabs, pow, isnan, isinf;
-from util.log_math import log_add;
-from random import random;
-from copy import deepcopy;
-from scipy.special import psi, gammaln, polygamma;
 
 """
 This is a python implementation of lda, based on variational inference, with hyper parameter updating.
 It supports asymmetric Dirichlet prior over the topic simplex.
 
 References:
-[1] D. Blei, A. Ng, and M. Jordan. Latent Dirichlet Allocation. Journal of Machine Learning Research, 3:993–1022, January 2003.
+[1] D. Blei, A. Ng, and M. Jordan. Latent Dirichlet Allocation. Journal of Machine Learning Research, 3:993-1022, January 2003.
 """
 class VariationalInference(object):
     """
@@ -53,7 +52,7 @@ class VariationalInference(object):
         # initialize a K-dimensional vector, valued at 1/K.
         self._alpha = {}
         for k in range(self._K):
-            self._alpha[k] = random() / self._K
+            self._alpha[k] = random.random() / self._K
 
         # initialize the documents, key by the document path, value by a list of non-stop and tokenized words, with duplication.
         self._data = data
@@ -83,7 +82,7 @@ class VariationalInference(object):
         for v in self._vocab:
             temp = {}
             for k in range(self._K):
-                temp[k] = log(1.0 / self._V + random())
+                temp[k] = math.log(1.0 / self._V + random.random())
             self._beta[v] = temp
 
     def inference(self):
@@ -96,9 +95,9 @@ class VariationalInference(object):
         alpha_sum = 0.0;
         for k in range(self._K):
             alpha_sum += self._alpha[k]
-            likelihood_alpha -= gammaln(self._alpha[k])
+            likelihood_alpha -= scipy.special.gammaln(self._alpha[k])
         
-        likelihood_alpha += gammaln(alpha_sum)
+        likelihood_alpha += scipy.special.gammaln(alpha_sum)
         likelihood_alpha *= self._D
         
         # initialize a V-by-K matrix beta contribution
@@ -138,7 +137,7 @@ class VariationalInference(object):
                 # initialize gamma update for this document
                 gamma_update = {}
                 for k in range(self._K):
-                    gamma_update[k] = log(self._alpha[k])
+                    gamma_update[k] = math.log(self._alpha[k])
                 
                 # update phi vector, i.e., pseudo-counts for word-topic assignment (beta vector)
                 [gamma_update, phi_table, likelihood_phi_temp] = self.update_phi(self._data[doc], phi_table, self._beta, gamma, gamma_update)
@@ -158,9 +157,9 @@ class VariationalInference(object):
             
             sum_gamma = 0.0
             for k in range(self._K):
-                likelihood_gamma += gammaln(gamma[k])
+                likelihood_gamma += scipy.special.gammaln(gamma[k])
                 sum_gamma += gamma[k]
-            likelihood_gamma -= gammaln(sum_gamma)
+            likelihood_gamma -= scipy.special.gammaln(sum_gamma)
             
             likelihood_phi += likelihood_phi_temp
                 
@@ -168,9 +167,9 @@ class VariationalInference(object):
 
             for k in range(self._K):
                 if k not in alpha_sufficient_statistics.keys():
-                    alpha_sufficient_statistics[k] = psi(gamma[k]) - psi(sum_gamma)
+                    alpha_sufficient_statistics[k] = scipy.special.psi(gamma[k]) - scipy.special.psi(sum_gamma)
                 else:
-                    alpha_sufficient_statistics[k] += psi(gamma[k]) - psi(sum_gamma)
+                    alpha_sufficient_statistics[k] += scipy.special.psi(gamma[k]) - scipy.special.psi(sum_gamma)
             
         self._beta = self.normalize_beta(beta_normalize_factor, beta)
         
@@ -188,7 +187,7 @@ class VariationalInference(object):
     @param alpha: a dict data type represents the alpha vector, in size of K, indexed by topic_id
     doc, beta, gamma and alpha value will not be modified, however, phi_table will be updated during this function
     """
-    def update_phi(self, doc, phi_table, beta, gamma, gamma_update):
+    def update_phi(self, doc, phi_table, beta, gamma, gamma_update):        
         # initialize 
         phi_table.clear()
         likelihood_phi = 0.0
@@ -207,29 +206,29 @@ class VariationalInference(object):
                 if k not in phi_table[term].keys():
                     phi_table[term][k] = 0
                 
-                phi_table[term][k] = beta[term][k] + psi(gamma[k])
-                #phi[k] = self._beta[term][k] + sp.special.psi(self._gamma[doc][k])
+                phi_table[term][k] = beta[term][k] + scipy.special.psi(gamma[k])
+                #phi[k] = self._beta[term][k] + sp.special.scipy.special.psi(self._gamma[doc][k])
                 # this term is constant, could be ignored after normalization
-                #- sp.special.psi(gamma_sum)
+                #- sp.special.scipy.special.psi(gamma_sum)
                 if(k==0):
                     phi_normalize_factor = phi_table[term][k]
                 else:
-                    phi_normalize_factor = log_add(phi_normalize_factor, phi_table[term][k])
+                    phi_normalize_factor = util.log_math.log_add(phi_normalize_factor, phi_table[term][k])
                         
             # sums the K-dimensional row vector phi
             for k in range(self._K):
                 # normalize the term
                 phi_table[term][k] -= phi_normalize_factor
-                likelihood_phi += term_counts * exp(phi_table[term][k]) * (beta[term][k] - phi_table[term][k])
-                phi_table[term][k] += log(term_counts)
+                likelihood_phi += term_counts * math.exp(phi_table[term][k]) * (beta[term][k] - phi_table[term][k])
+                phi_table[term][k] += math.log(term_counts)
                 
                 # update the K-dimensional row vector gamma[doc]
-                gamma_update[k] = log_add(gamma_update[k], phi_table[term][k])
+                gamma_update[k] = util.log_math.log_add(gamma_update[k], phi_table[term][k])
                          
         sum_gamma = 0.0
         # gamma update is in log scale, remember?
         for k in range(self._K):
-            gamma_update[k] = exp(gamma_update[k])
+            gamma_update[k] = math.exp(gamma_update[k])
             sum_gamma += gamma_update[k]
         
         return gamma_update, phi_table, likelihood_phi
@@ -243,7 +242,7 @@ class VariationalInference(object):
     @param alpha: a dict data type represents the alpha vector, in size of K, indexed by topic_id
     doc, beta, gamma and alpha value will not be modified, however, phi_table will be updated during this function
     """
-    def update_gamma(self, doc, phi_table, beta, gamma, gamma_update):
+    def update_gamma(self, doc, phi_table, beta, gamma, gamma_update):        
         # initialize 
         clear_phi_table = True
         phi_table.clear()
@@ -266,14 +265,14 @@ class VariationalInference(object):
                 if k not in phi_table[term].keys():
                     phi_table[term][k] = 0
                 
-                phi_table[term][k] = beta[term][k] + psi(gamma[k])
-                #phi[k] = self._beta[term][k] + sp.special.psi(self._gamma[doc][k])
+                phi_table[term][k] = beta[term][k] + scipy.special.psi(gamma[k])
+                #phi[k] = self._beta[term][k] + sp.special.scipy.special.psi(self._gamma[doc][k])
                 # this term is constant, could be ignored after normalization
-                #- sp.special.psi(gamma_sum)
+                #- sp.special.scipy.special.psi(gamma_sum)
                 if(k==0):
                     phi_normalize_factor = phi_table[term][k]
                 else:
-                    phi_normalize_factor = log_add(phi_normalize_factor, phi_table[term][k])
+                    phi_normalize_factor = util.log_math.log_add(phi_normalize_factor, phi_table[term][k])
                         
             # sums the K-dimensional row vector phi
             for k in range(self._K):
@@ -283,29 +282,29 @@ class VariationalInference(object):
                 if clear_phi_table:
                     phi_sum[k] = phi_table[term][k]
                 else:
-                    phi_sum[k] = log_add(phi_sum[k], phi_table[term][k])
+                    phi_sum[k] = util.log_math.log_add(phi_sum[k], phi_table[term][k])
 
-                likelihood_phi += exp(phi_table[term][k]) * (phi_table[term][k] + term_counts * beta[term][k])
-                phi_table[term][k] += log(term_counts)
+                likelihood_phi += math.exp(phi_table[term][k]) * (phi_table[term][k] + term_counts * beta[term][k])
+                phi_table[term][k] += math.log(term_counts)
                 
                 if clear_phi_table :
                     phi_weighted_sum[k] = phi_table[term][k]
                 else:
-                    phi_weighted_sum[k] = log_add(phi_weighted_sum[k], phi_table[term][k])
+                    phi_weighted_sum[k] = util.log_math.log_add(phi_weighted_sum[k], phi_table[term][k])
                 
                 # update the K-dimensional row vector gamma[doc]
-                gamma_update[k] = log_add(gamma_update[k], phi_table[term][k])
+                gamma_update[k] = util.log_math.log_add(gamma_update[k], phi_table[term][k])
                 
             clear_phi_table = False
          
         sum_gamma = 0.0
         # gamma update is in log scale, remember?
         for k in range(self._K):
-            gamma_update[k] = exp(gamma_update[k])
+            gamma_update[k] = math.exp(gamma_update[k])
             sum_gamma += gamma_update[k]
                 
         for k in range(self._K):
-            likelihood_phi += (exp(phi_sum[k]) - exp(phi_weighted_sum[k])) * (psi(gamma_update[k]) - psi(sum_gamma))
+            likelihood_phi += (math.exp(phi_sum[k]) - math.exp(phi_weighted_sum[k])) * (scipy.special.psi(gamma_update[k]) - scipy.special.psi(sum_gamma))
         
         return gamma_update, phi_table, likelihood_phi
         
@@ -321,20 +320,20 @@ class VariationalInference(object):
         for term in doc.keys():
             if len(beta_normalize_factor)==0:
                 # if this is the first term ever
-                beta_normalize_factor = deepcopy(phi_table[term])
+                beta_normalize_factor = copy.deepcopy(phi_table[term])
                 beta[term] = phi_table[term]
             elif term not in beta.keys():
                 # if this is the first time this term appears
                 beta[term] = phi_table[term]
                 for k in range(self._K):
                     # update the beta normalize factors
-                    beta_normalize_factor[k] = log_add(beta_normalize_factor[k], phi_table[term][k])
+                    beta_normalize_factor[k] = util.log_math.log_add(beta_normalize_factor[k], phi_table[term][k])
             else:
                 # iterate over all topics
                 for k in range(self._K):
                     # update the beta matrix
-                    beta[term][k] = log_add(beta[term][k], phi_table[term][k])
-                    beta_normalize_factor[k] = log_add(beta_normalize_factor[k], phi_table[term][k])
+                    beta[term][k] = util.log_math.log_add(beta[term][k], phi_table[term][k])
+                    beta_normalize_factor[k] = util.log_math.log_add(beta_normalize_factor[k], phi_table[term][k])
 
         return beta, beta_normalize_factor
     
@@ -376,18 +375,18 @@ class VariationalInference(object):
             
             for k in range(self._K):
                 # compute the alpha gradient
-                alpha_gradient[k] = self._D * (psi(alpha_sum) - psi(alpha_vector[k])) + alpha_sufficient_statistics[k]
+                alpha_gradient[k] = self._D * (scipy.special.psi(alpha_sum) - scipy.special.psi(alpha_vector[k])) + alpha_sufficient_statistics[k]
                 # compute the alpha hessian
-                alpha_hessian[k] = -self._D * polygamma(1, alpha_vector[k])
+                alpha_hessian[k] = -self._D * scipy.special.polygamma(1, alpha_vector[k])
                 
                 # if the alpha gradient is not well defined
-                if isinf(alpha_gradient[k]) or isnan(alpha_gradient[k]):
+                if math.isinf(alpha_gradient[k]) or math.isnan(alpha_gradient[k]):
                     print "illegal alpha gradient value at index ", k, ": ", alpha_gradient[k]
                 
                 sum_g_h += alpha_gradient[k] / alpha_hessian[k]
                 sum_1_h += 1.0 / alpha_hessian[k]
 
-            z = self._D * polygamma(1, alpha_sum)
+            z = self._D * scipy.special.polygamma(1, alpha_sum)
             c = sum_g_h / (1.0 / z + sum_1_h)
 
             # update the alpha vector
@@ -396,7 +395,7 @@ class VariationalInference(object):
 
                 for k in range(self._K):
                     # compute the step size
-                    step_size = pow(self._alpha_update_decay_factor, decay) * (alpha_gradient[k] - c) / alpha_hessian[k]
+                    step_size = math.pow(self._alpha_update_decay_factor, decay) * (alpha_gradient[k] - c) / alpha_hessian[k]
                     if alpha_vector[k] <= step_size:
                         singular_hessian = True
                         break
@@ -412,7 +411,7 @@ class VariationalInference(object):
                     if decay > self._alpha_maximum_decay:
                         break
                 else:
-                    #print "update alpha for decay factor ", pow(self._alpha_update_decay_factor, decay)
+                    #print "update alpha for decay factor ", math.pow(self._alpha_update_decay_factor, decay)
                     break
                 
             # compute the alpha sum

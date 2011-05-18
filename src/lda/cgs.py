@@ -3,12 +3,12 @@
 @author: Ke Zhai (zhaike@cs.umd.edu)
 """
 
+import math, random;
+import scipy;
+import util.log_math;
+
 from collections import defaultdict
-from math import log, exp
-from random import random
 from nltk import FreqDist
-from scipy.special import gamma, psi, gammaln, polygamma
-from util.log_math import log_sample
 
 """
 This is a python implementation of lda, based on collapsed Gibbs sampling, with hyper parameter updating.
@@ -22,8 +22,9 @@ class CollapsedGibbsSampling:
     
     """
     def __init__(self, alpha=0.5, beta=0.1, 
+                 gibbs_sampling_maximum_iteration=200, 
                  hyper_parameter_maximum_iteration=100, 
-                 gibbs_sampling_maximum_iteration=200):
+                 hyper_parameter_sampling_interval=25):
         # set the document smooth factor
         self._alpha = alpha
         # set the vocabulary smooth factor
@@ -31,6 +32,8 @@ class CollapsedGibbsSampling:
         
         self._hyper_parameter_maximum_iteration = hyper_parameter_maximum_iteration
         self._gibbs_sampling_maximum_iteration = gibbs_sampling_maximum_iteration
+        self._hyper_parameter_sampling_interval = hyper_parameter_sampling_interval;
+        assert(self._hyper_parameter_sampling_interval>0);
         
         # pending for further changing~
         #self._hyper_parameter_converge_threshold = 0.000001
@@ -75,28 +78,28 @@ class CollapsedGibbsSampling:
     
     """
     def optimize_hyperparameters(self, samples=5, step=3.0):
-        rawParam = [log(self._alpha), log(self._beta)]
+        rawParam = [math.log(self._alpha), math.log(self._beta)]
 
         for ii in xrange(samples):
             log_likelihood_old = self.compute_likelihood(self._alpha, self._beta)
-            log_likelihood_new = log(random()) + log_likelihood_old
+            log_likelihood_new = math.log(random.random()) + log_likelihood_old
             print("OLD: %f\tNEW: %f at (%f, %f)" % (log_likelihood_old, log_likelihood_new, self._alpha, self._beta))
 
-            l = [x - random() * step for x in rawParam]
+            l = [x - random.random() * step for x in rawParam]
             r = [x + step for x in rawParam]
 
             for jj in xrange(self._hyper_parameter_maximum_iteration):
-                rawParamNew = [l[x] + random() * (r[x] - l[x]) for x in xrange(len(rawParam))]
-                trial_alpha, trial_beta = [exp(x) for x in rawParamNew]
+                rawParamNew = [l[x] + random.random() * (r[x] - l[x]) for x in xrange(len(rawParam))]
+                trial_alpha, trial_beta = [math.exp(x) for x in rawParamNew]
                 lp_test = self.compute_likelihood(trial_alpha, trial_beta)
 
                 if lp_test > log_likelihood_new:
                     print(jj)
-                    self._alpha = exp(rawParamNew[0])
-                    self._beta = exp(rawParamNew[1])
+                    self._alpha = math.exp(rawParamNew[0])
+                    self._beta = math.exp(rawParamNew[1])
                     self._alpha_sum = self._alpha * self._K
                     self._beta_sum = self._beta * self._V
-                    rawParam = [log(self._alpha), log(self._beta)]
+                    rawParam = [math.log(self._alpha), math.log(self._beta)]
                     break
                 else:
                     for dd in xrange(len(rawParamNew)):
@@ -120,22 +123,22 @@ class CollapsedGibbsSampling:
 
         likelihood = 0.0
         # compute the log likelihood of the document
-        likelihood += gammaln(alpha_sum) * len(self._data)
-        likelihood -= gammaln(alpha) * self._K * len(self._data)
+        likelihood += scipy.special.gammaln(alpha_sum) * len(self._data)
+        likelihood -= scipy.special.gammaln(alpha) * self._K * len(self._data)
            
         for ii in self._doc_topics.keys():
             for jj in xrange(self._K):
-                likelihood += gammaln(alpha + self._doc_topics[ii][jj])                    
-            likelihood -= gammaln(alpha_sum + self._doc_topics[ii].N())
+                likelihood += scipy.special.gammaln(alpha + self._doc_topics[ii][jj])                    
+            likelihood -= scipy.special.gammaln(alpha_sum + self._doc_topics[ii].N())
             
         # compute the log likelihood of the topic
-        likelihood += gammaln(beta_sum) * self._K
-        likelihood -= gammaln(beta) * self._V * self._K
+        likelihood += scipy.special.gammaln(beta_sum) * self._K
+        likelihood -= scipy.special.gammaln(beta) * self._V * self._K
             
         for ii in self._topic_words.keys():
             for jj in self._vocab:
-                likelihood += gammaln(beta + self._topic_words[ii][jj])
-            likelihood -= gammaln(beta_sum + self._topic_words[ii].N())
+                likelihood += scipy.special.gammaln(beta + self._topic_words[ii][jj])
+            likelihood -= scipy.special.gammaln(beta_sum + self._topic_words[ii].N())
             
         return likelihood
 
@@ -146,13 +149,13 @@ class CollapsedGibbsSampling:
     @param topic: topic id  
     @return: the probability value of the topic for that word in that document
     """
-    def prob(self, doc, word, topic):
-        val = log(self._doc_topics[doc][topic] + self._alpha)
+    def log_prob(self, doc, word, topic):
+        val = math.log(self._doc_topics[doc][topic] + self._alpha)
         #this is constant across a document, so we don't need to compute this term
-        # val -= log(self._doc_topics[doc].N() + self._alpha_sum)
+        # val -= math.log(self._doc_topics[doc].N() + self._alpha_sum)
         
-        val += log(self._topic_words[topic][word] + self._beta)
-        val -= log(self._topic_words[topic].N() + self._V * self._beta)
+        val += math.log(self._topic_words[topic][word] + self._beta)
+        val -= math.log(self._topic_words[topic].N() + self._V * self._beta)
     
         return val
 
@@ -161,7 +164,7 @@ class CollapsedGibbsSampling:
     @param doc: a document id
     @param position: the position in doc, ranged as range(self._data[doc])
     """
-    def sample_word(self, doc, position):
+    def sample_word(self, doc, position):        
         assert position >= 0 and position < len(self._data[doc])
         
         #retrieve the word
@@ -174,10 +177,10 @@ class CollapsedGibbsSampling:
             self.change_count(doc, word, old_topic, -1)
 
         #compute the topic probability of current word, given the topic assignment for other words
-        probs = [self.prob(doc, self._data[doc][position], x) for x in xrange(self._K)]
+        probs = [self.log_prob(doc, self._data[doc][position], x) for x in xrange(self._K)]
 
         #sample a new topic out of a distribution according to probs
-        new_topic = log_sample(probs)
+        new_topic = util.log_math.log_sample(probs)
 
         #after we draw a new topic for that word, we will change the topic|doc counts and word|topic counts, i.e., add the counts back
         self.change_count(doc, word, new_topic, 1)
@@ -200,7 +203,7 @@ class CollapsedGibbsSampling:
     sample the corpus to train the parameters
     @param hyper_delay: defines the delay in updating they hyper parameters, i.e., start updating hyper parameter only after hyper_delay number of gibbs sampling iterations. Usually, it specifies a burn-in period.
     """
-    def sample(self, hyper_delay=50):
+    def sample(self):
         assert self._topic_assignment
         
         #sample the total corpus
@@ -212,7 +215,7 @@ class CollapsedGibbsSampling:
                     self.sample_word(doc, position)
                     
             print("iteration %i %f" % (iter, self.compute_likelihood(self._alpha, self._beta)))
-            if hyper_delay >= 0 and iter % hyper_delay == 0:
+            if iter % self._hyper_parameter_sampling_interval == 0:
                 self.optimize_hyperparameters()
 
     def print_topics(self, num_words=15):
