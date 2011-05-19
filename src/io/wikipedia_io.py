@@ -414,13 +414,17 @@ def output_vocabulary_mappings(input_mapping_file, output_vocab_mapping_en, outp
     print "successfully load the vocabularies..."
     
     output = codecs.open(output_vocab_mapping_en, mode="w", encoding="utf-8");
-    for word in vocab_en:
-        output.write(str(vocab_en.index(word)) + "\t" + word + "\n");
+    for i in range(len(vocab_en)):
+        output.write(str(i+1) + "\t" + vocab_en[i] + "\n");
+#    for word in vocab_en:
+#        output.write(str(vocab_en.index(word)) + "\t" + word + "\n");
     print "successfully output the english vocabulary..." 
     
     output = codecs.open(output_vocab_mapping_de, mode="w", encoding="utf-8");
-    for word in vocab_de:
-        output.write(str(vocab_de.index(word)) + "\t" + word + "\n");
+    for i in range(len(vocab_de)):
+        output.write(str(i+1) + "\t" + vocab_de[i] + "\n");
+#    for word in vocab_de:
+#        output.write(str(vocab_de.index(word)) + "\t" + word + "\n");
     print "successfully output the german vocabulary..."
     
     output = codecs.open(output_mapping_file, mode="w", encoding="utf-8");
@@ -434,11 +438,11 @@ def output_vocabulary_mappings(input_mapping_file, output_vocab_mapping_en, outp
         
         output_context = str(doc_count) + "\t";
         for word in en_context:
-            output_context += str(vocab_en.index(word)) + " "
+            output_context += str(vocab_en.index(word)+1) + " "
         output_context = output_context.strip();
         output_context += "\t"
         for word in de_context:
-            output_context += str(vocab_de.index(word)) + " "
+            output_context += str(vocab_de.index(word)+1) + " "
         output_context = output_context.strip();
         output_context += "\n";
         
@@ -477,4 +481,4 @@ if __name__ == "__main__":
     output_vocabulary_mappings("../../data/wiki/mapping-en-de/en-de-doc.txt", 
                                "../../data/wiki/mapping-en-de/en-vocab-mapping.txt", 
                                "../../data/wiki/mapping-en-de/de-vocab-mapping.txt", 
-                               "../../data/wiki/mapping/en-de-doc-voc-map.txt");
+                               "../../data/wiki/mapping-en-de/doc-voc-map.txt");

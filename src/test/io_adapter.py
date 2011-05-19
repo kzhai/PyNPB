@@ -1,22 +1,6 @@
 from glob import glob;
 from collections import defaultdict;
 
-# this method is used for mapping documents correspondence between two corpora, usually for multilingual study
-# corpus_a, corpus_b: dict or defaultdict(dict) data type, indexed by document id
-# output the corresponding corpus with exact one-to-one mapping on the document id's
-def map_corpus(corpus_a, corpus_b):
-    common_docs = (set(corpus_a.keys()) & set(corpus_b.keys()));
-   
-    for doc in corpus_a.keys():
-        if doc not in common_docs:
-            del corpus_a[doc]
-            
-    for doc in corpus_b.keys():
-        if doc not in common_docs:
-            del corpus_b[doc]
-            
-    return corpus_a, corpus_b
-
 def output_param(alpha, beta, gamma, dir, index=-1):
     if index!=-1:
         postfix = str(index)
