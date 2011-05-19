@@ -59,7 +59,7 @@ class UncollapsedGibbsSampling(object):
         self._sigma_a = sigma_a;
 
         # Data matrix
-        self._X = data;
+        self._X = self.center_data(data);
         (self._N, self._D) = self._X.shape;
 
         if mean_a==None:
@@ -92,7 +92,7 @@ class UncollapsedGibbsSampling(object):
     """
     def initialize_A(self):
         
-        (mean, covariance) = self.sufficient_statistics_A();
+        (mean, std_dev) = self.sufficient_statistics_A();
         assert(mean.shape==(self._K, self._D));
         
         return mean
@@ -267,22 +267,10 @@ class UncollapsedGibbsSampling(object):
         order = numpy.random.permutation(self._D);
         for (observation_counter, observation_index) in enumerate(order):
             # sample A_d
-            (mean, covariance) = self.sufficient_statistics_A([observation_index]);
-            #print mean, "\n", covariance, "\n", mean.shape, covariance.shape
-            assert(covariance.shape==(self._K, self._K));
+            (mean, std_dev) = self.sufficient_statistics_A([observation_index]);
+            assert(std_dev.shape==(self._K, self._K));
             assert(mean.shape==(self._K, len([observation_index])));
-            #print numpy.random.normal(0, 1, (self._K, len([observation_index]))).shape, (numpy.dot(covariance, numpy.random.normal(0, 1, (self._K, len([observation_index])))) + mean).shape
-            self._A[:, [observation_index]] = numpy.dot(covariance, numpy.random.normal(0, 1, (self._K, len([observation_index])))) + mean;
-        
-        return
-    
-    """
-    """
-    def sample_A_old(self):
-        # sample every feature
-        order = numpy.random.permutation(self._K);
-        for (feature_counter, feature_index) in enumerate(order):
-            self._A[[feature_index], :] = numpy.dot(self._sigma_a, numpy.random.normal(0, 1, (1, self._D))) + self._mean_a;
+            self._A[:, [observation_index]] = numpy.dot(std_dev, numpy.random.normal(0, 1, (self._K, len([observation_index])))) + mean;
         
         return
     
@@ -300,10 +288,11 @@ class UncollapsedGibbsSampling(object):
         assert(type(observation_index)==list);
         
         D = X.shape[1];
-        mean_a = numpy.zeros((self._K, D));
-        for k in range(self._K):
-            mean_a[k, :] = self._mean_a[0, observation_index];
-            
+        #mean_a = numpy.zeros((self._K, D));
+        #for k in range(self._K):
+        #    mean_a[k, :] = self._mean_a[0, observation_index];
+        mean_a = numpy.tile(self._mean_a[0, observation_index], (self._K, 1));
+
         assert(X.shape==(self._N, D));
         assert(self._Z.shape==(self._N, self._K));
         assert(mean_a.shape==(self._K, D))
@@ -313,9 +302,9 @@ class UncollapsedGibbsSampling(object):
         # compute the mean of the matrix A
         mean_A = numpy.dot(M, numpy.dot(self._Z.transpose(), X)-(self._sigma_x / self._sigma_a)**2 * mean_a);
         # compute the co-variance of the matrix A
-        covariance_A = numpy.linalg.cholesky(self._sigma_x**2 * M).transpose();
+        std_dev_A = numpy.linalg.cholesky(self._sigma_x**2 * M).transpose();
         
-        return (mean_A, covariance_A)
+        return (mean_A, std_dev_A)
     
     """
     remove the empty column in matrix Z and the corresponding feature in A
@@ -421,9 +410,9 @@ class UncollapsedGibbsSampling(object):
     """
     def log_likelihood_A(self):
         log_likelihood = -0.5 * self._K * self._D * numpy.log(2 * numpy.pi * self._sigma_a * self._sigma_a);
-        mean_a = numpy.zeros((self._K, self._D));
-        for k in range(self._K):
-            mean_a[k, :] = self._mean_a[0, :];
+        #for k in range(self._K):
+        #    mean_a[k, :] = self._mean_a[0, :];
+        mean_a = numpy.tile(self._mean_a, (self._K, 1))
         log_likelihood -= numpy.trace(numpy.dot((self._A-mean_a).transpose(), (self._A-mean_a)) * 0.5 / (self._sigma_a**2));
         
         return log_likelihood;
@@ -432,7 +421,7 @@ class UncollapsedGibbsSampling(object):
     compute the log-likelihood of the model
     """
     def log_likelihood_model(self):
-        #print self.log_likelihood_X(self._X, self._Z, self._A), self.log_likelihood_A(), self.log_likelihood_Z();
+        print self.log_likelihood_X(self._X, self._Z, self._A), self.log_likelihood_A(), self.log_likelihood_Z();
         return self.log_likelihood_X(self._X, self._Z, self._A) + self.log_likelihood_A() + self.log_likelihood_Z();
 
     """
@@ -487,6 +476,15 @@ class UncollapsedGibbsSampling(object):
         alpha_new = scipy.stats.gamma.rvs(postShape,scale=postScale);
         
         return alpha_new;
+    
+    """
+    center the data, i.e., subtract the mean
+    """
+    @staticmethod
+    def center_data(self, data):
+        (N, D) = data.shape;
+        data = data - numpy.tile(data.mean(axis=0), (N,1));
+        return data
                 
 """
 run IBP on the synthetic 'cambridge bars' dataset, used in the original paper.
