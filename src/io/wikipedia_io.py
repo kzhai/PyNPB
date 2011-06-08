@@ -491,45 +491,43 @@ def map_beta(input_beta_file, vocab_mapping, output_beta_file):
         output.write(vocab[contents[0]] + "\t" + contents[1] + "\n");
     
 if __name__ == "__main__":
+#    data_en = parse_wikipedia("../../data/wikipedia/enwiki/*", "english", 100, 0.4, 0.0001)
+#    data_de = parse_wikipedia("../../data/wikipedia/dewiki/*", "german", 100, 0.4, 0.0001)
+#    print len(data_en), "\t", len(data_de)
+#    
+#    parsed_docs = output_wikipedia("../../data/wiki/enwiki/*", "../../data/wiki/mapping-en-de/en-wiki.txt", "english", -1)
+#    print "parsed ", parsed_docs, " english documents in total..."
+#    
+#    parsed_docs = output_wikipedia("../../data/wiki/dewiki/*", "../../data/wiki/mapping-en-de/de-wiki.txt", "german", -1)
+#    print "parsed ", parsed_docs, " german documents in total..."
+#
+#    #output_document_titles("../../data/wiki/enwiki.txt", "../../data/wiki/en-title.txt")
+#    #output_document_titles("../../data/wiki/dewiki.txt", "../../data/wiki/de-title.txt")
 
-    
-    data_en = parse_wikipedia("../../data/wikipedia/enwiki/*", "english", 100, 0.4, 0.0001)
-    data_de = parse_wikipedia("../../data/wikipedia/dewiki/*", "german", 100, 0.4, 0.0001)
-    print len(data_en), "\t", len(data_de)
-    
-    parsed_docs = output_wikipedia("../../data/wiki/enwiki/*", "../../data/wiki/enwiki.txt", "english", -1)
-    print "parsed ", parsed_docs, " english documents in total..."
-    
-    parsed_docs = output_wikipedia("../../data/wiki/dewiki/*", "../../data/wiki/dewiki.txt", "german", -1)
-    print "parsed ", parsed_docs, " german documents in total..."
-
-    #output_document_titles("../../data/wiki/enwiki.txt", "../../data/wiki/en-title.txt")
-    #output_document_titles("../../data/wiki/dewiki.txt", "../../data/wiki/de-title.txt")
-
-    title_a, title_b = retrieve_doc_mappings("../../data/wiki/mapping-en-de/en-de-title-mapping.txt")
+    title_a, title_b = retrieve_doc_mappings("../../data/wiki/mapping-en-de/title-mapping.txt")
     print len(title_a), len(title_b)
     
-    output_mapped_documents(title_a, "../../data/wiki/mapping-en-de/enwiki.txt", "../../data/wiki/mapping-en-de/en-mapping-wiki.txt")
-    output_mapped_documents(title_b, "../../data/wiki/mapping-en-de/dewiki.txt", "../../data/wiki/mapping-en-de/de-mapping-wiki.txt")
+    output_mapped_documents(title_a, "../../data/wiki/mapping-en-de/en-wiki.txt", "../../data/wiki/mapping-en-de/en-mapping-wiki.txt")
+#    output_mapped_documents(title_b, "../../data/wiki/mapping-en-de/de-wiki.txt", "../../data/wiki/mapping-en-de/de-mapping-wiki.txt")
     
-    output_document_mappings("../../data/wiki/mapping-en-de/en-doc.txt", 
-                             "../../data/wiki/mapping-en-de/de-doc.txt", 
-                             "../../data/wiki/en-de-doc.txt", True, 200000);
-    
-    print "successfully output document mappings..."
-
-    output_vocabulary_mappings("../../data/wiki/mapping-en-de/en-de-doc.txt", 
-                               "../../data/wiki/mapping-en-de/en-vocab-mapping.txt", 
-                               "../../data/wiki/mapping-en-de/de-vocab-mapping.txt");
-                               
-    print "successfully output vocabulary mappings..."
-
-    output_mapped_vocab_docs("../../data/wiki/mapping-en-de/en-de-doc.txt", 
-                             "../../data/wiki/mapping-en-de/en-vocab-mapping.txt", 
-                             "../../data/wiki/mapping-en-de/de-vocab-mapping.txt", 
-                             "../../data/wiki/mapping-en-de/doc-voc-map.txt");
-    
-    print "successfully output mapped vocabulary documents..."
-
-    map_beta("../../data/wiki/liberty18", "../../data/wiki/mapping-en-de/en-vocab-mapping.txt", "../../data/wiki/liberty18-new");
-    print "successfully output the mapped beta file..."
+#    output_document_mappings("../../data/wiki/mapping-en-de/en-doc.txt", 
+#                             "../../data/wiki/mapping-en-de/de-doc.txt", 
+#                             "../../data/wiki/en-de-doc.txt", True, 200000);
+#    
+#    print "successfully output document mappings..."
+#
+#    output_vocabulary_mappings("../../data/wiki/mapping-en-de/en-de-doc.txt", 
+#                               "../../data/wiki/mapping-en-de/en-vocab-mapping.txt", 
+#                               "../../data/wiki/mapping-en-de/de-vocab-mapping.txt");
+#                               
+#    print "successfully output vocabulary mappings..."
+#
+#    output_mapped_vocab_docs("../../data/wiki/mapping-en-de/en-de-doc.txt", 
+#                             "../../data/wiki/mapping-en-de/en-vocab-mapping.txt", 
+#                             "../../data/wiki/mapping-en-de/de-vocab-mapping.txt", 
+#                             "../../data/wiki/mapping-en-de/doc-voc-map.txt");
+#    
+#    print "successfully output mapped vocabulary documents..."
+#
+#    map_beta("../../data/wiki/liberty18", "../../data/wiki/mapping-en-de/en-vocab-mapping.txt", "../../data/wiki/liberty18-new");
+#    print "successfully output the mapped beta file..."

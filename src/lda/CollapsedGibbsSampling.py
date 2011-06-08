@@ -223,8 +223,8 @@ class CollapsedGibbsSampling:
             print("%i:%s\n" % (ii, "\t".join(self._topic_words[ii].keys()[:num_words])))
 
 if __name__ == "__main__":
-    from io.de_news_io import parse_de_news_gs
-    d = parse_de_news_gs("../../data/de-news/*.en.txt", "english", 100, 0.3, 0.0001)
+    from io.de_news_io import parse_to_gs_format
+    d = parse_to_gs_format("../../data/de-news/*.en.txt", "english", 100, 0.3, 0.0001)
     
     lda = CollapsedGibbsSampling()
     lda._initialize(d, 3)

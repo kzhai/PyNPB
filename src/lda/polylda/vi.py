@@ -483,14 +483,14 @@ class VariationalInference(object):
         #print self._gamma
             
 if __name__ == "__main__":
-    from io.de_news_io import parse_de_news_vi
+    from io.de_news_io import parse_to_vi_format
     from io.io_adapter import map_corpus
     from facility.output_function import output_dict, output_defaultdict_dict
     
-    data_en = parse_de_news_vi("../../../data/de-news/*.en.txt", "english",
+    data_en = parse_to_vi_format("../../../data/de-news/*.en.txt", "english",
                   1500, 0.2, 0.0001)
     
-    data_de = parse_de_news_vi("../../../data/de-news/*.de.txt", "german",
+    data_de = parse_to_vi_format("../../../data/de-news/*.de.txt", "german",
                   1500, 0.2, 0.0001)
     print len(data_en), "\t", len(data_de)
     

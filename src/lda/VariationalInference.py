@@ -1,4 +1,4 @@
-"""
+"""VariationalInference
 @author: Jordan Boyd-Graber (jbg@umiacs.umd.edu)
 @author: Ke Zhai (zhaike@cs.umd.edu)
 """
@@ -448,8 +448,8 @@ class VariationalInference(object):
         print "learning finished..."
             
 if __name__ == "__main__":
-    from io.de_news_io import parse_de_news_vi
-    d = parse_de_news_vi("../../data/de-news/*.en.txt", 'english', 100, 0.4, 0.0001)
+    from io.de_news_io import parse_to_vi_format
+    d = parse_to_vi_format("../../data/de-news/*.en.txt", 'english', 100, 0.4, 0.0001)
     
     lda = VariationalInference();
     lda._initialize(d, 3);
