@@ -22,7 +22,7 @@ class CollapsedGibbsSampling:
     
     """
     def __init__(self, alpha=0.5, beta=0.1, 
-                 gibbs_sampling_maximum_iteration=200, 
+                 gibbs_sampling_maximum_iteration=100, 
                  hyper_parameter_maximum_iteration=100, 
                  hyper_parameter_sampling_interval=25):
         # set the document smooth factor
@@ -223,11 +223,11 @@ class CollapsedGibbsSampling:
             print("%i:%s\n" % (ii, "\t".join(self._topic_words[ii].keys()[:num_words])))
 
 if __name__ == "__main__":
-    from io.de_news_io import parse_to_gs_format
-    d = parse_to_gs_format("../../data/de-news/*.en.txt", "english", 100, 0.3, 0.0001)
-    
+    from io.InputParser import import_monolingual_data;
+    d = import_monolingual_data("../../data/de-news/en-de-news.txt", 100);
+        
     lda = CollapsedGibbsSampling()
     lda._initialize(d, 3)
 
-    lda.sample(25)
+    lda.sample()
     lda.print_topics()

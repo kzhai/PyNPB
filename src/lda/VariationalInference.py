@@ -448,8 +448,10 @@ class VariationalInference(object):
         print "learning finished..."
             
 if __name__ == "__main__":
-    from io.de_news_io import parse_to_vi_format
-    d = parse_to_vi_format("../../data/de-news/*.en.txt", 'english', 100, 0.4, 0.0001)
+    from io.InputParser import import_monolingual_data;
+    d = import_monolingual_data("../../data/de-news/en-de-news.txt", 100);
+    from util.type_converter import dict_list_2_dict_freqdist
+    d = dict_list_2_dict_freqdist(d);
     
     lda = VariationalInference();
     lda._initialize(d, 3);
