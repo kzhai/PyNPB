@@ -446,7 +446,7 @@ class VariationalInference(object):
             print "alpha vector is ", self._alpha
             
         print "learning finished..."
-            
+
 if __name__ == "__main__":
     from io.InputParser import import_monolingual_data;
     d = import_monolingual_data("../../data/de-news/en-de-news.txt", 100);
