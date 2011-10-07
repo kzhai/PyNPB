@@ -164,7 +164,7 @@ class UncollapsedGibbsSampling(object):
                     self.metropolis_hastings_K_new(object_index, singleton_features);
                     
                 # calculate initial feature possess counts
-                self._m = self._Z.sum(axis=0);
+                #self._m = self._Z.sum(axis=0);
             
             self.sample_A();
 
@@ -198,13 +198,13 @@ class UncollapsedGibbsSampling(object):
         
         # compute the log probability of p(Znk=0 | Z_nk) and p(Znk=1 | Z_nk)
         log_prob_z1 = numpy.log(new_m/self._N);
-        log_prob_z0 = numpy.log(1 - new_m/self._N);
+        log_prob_z0 = numpy.log(1.0 - new_m/self._N);
         
         # find all singleton features possessed by current object
         singleton_features = [nk for nk in range(self._K) if self._Z[object_index, nk] != 0 and new_m[nk] == 0];
         non_singleton_features = [nk for nk in range(self._K) if nk not in singleton_features]
+        
         order = numpy.random.permutation(self._K);
-
         for (feature_counter, feature_index) in enumerate(order):
             if feature_index in non_singleton_features:
                 #old_Znk = self._Z[object_index, feature_index];
@@ -216,8 +216,6 @@ class UncollapsedGibbsSampling(object):
                 # compute the log likelihood when Znk=1
                 self._Z[object_index, feature_index]=1;
                 prob_z1 = numpy.exp(self.log_likelihood_X(numpy.array([self._X[object_index, :]]), numpy.array([self._Z[object_index, :]]), self._A) + log_prob_z1[feature_index]);
-                
-                #print prob_z0, prob_z1
                 
                 Znk_is_0 = prob_z0/(prob_z0+prob_z1);
                 if random.random()<Znk_is_0:
@@ -240,9 +238,8 @@ class UncollapsedGibbsSampling(object):
         if K_temp <= 0 and len(singleton_features) <= 0:
             return False;
 
-        A_prior = numpy.tile(self._A_prior, (K_temp, 1));
-
         # generate new features from a normal distribution with mean 0 and variance sigma_a, a K_new-by-D matrix
+        A_prior = numpy.tile(self._A_prior, (K_temp, 1));
         A_temp = numpy.random.normal(0, self._sigma_a, (K_temp, self._D)) + A_prior;
         A_new = numpy.vstack((self._A[[k for k in xrange(self._K) if k not in singleton_features], :], A_temp));
         # generate new z matrix row
@@ -256,8 +253,8 @@ class UncollapsedGibbsSampling(object):
         # construct the A_old and Z_old
         A_old = self._A;
         Z_old = self._Z[object_index, :];
-
         K_old = self._K;
+
         assert(A_old.shape==(K_old, self._D));
         assert(A_new.shape==(K_new, self._D));
         assert(Z_old.shape==(len(object_index), K_old));
@@ -276,7 +273,8 @@ class UncollapsedGibbsSampling(object):
             self._Z = numpy.hstack((self._Z[:, [k for k in xrange(self._K) if k not in singleton_features]], numpy.zeros((self._N, K_temp))));
             self._Z[object_index, :] = Z_new;
             self._K = K_new;
-            
+            return False;
+                    
         return True;
 
     """
@@ -534,11 +532,11 @@ if __name__ == '__main__':
     ibp = UncollapsedGibbsSampling(alpha_hyper_parameter, sigma_x_hyper_parameter, sigma_a_hyper_parameter, True);
     #ibp = UncollapsedGibbsSampling(alpha_hyper_parameter);
 
-    ibp._initialize(data, 1.0, 0.2, 1.0, None, features[xrange(1000)], None);
+    ibp._initialize(data, 1.0, 0.2, 1.0, None, None, None);
     #ibp._initialize(data[0:1000, :], 1.0, 1.0, 1.0, None, features[0:1000, :]);
     
     #print ibp._Z, "\n", ibp._A
-    ibp.sample(30);
+    ibp.sample(500);
     
     print ibp._Z.sum(axis=0)
 
