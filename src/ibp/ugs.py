@@ -2,20 +2,18 @@
 Author: Ke Zhai (zhaike@cs.umd.edu)
 
 This code was modified from the code originally written by David Andrzejewski (david.andrzej@gmail.com).
-
 Implements uncollapsed Gibbs sampling for the linear-Gaussian infinite latent feature model (IBP).
 """
 
 import numpy, scipy;
 import math, random;
-import util.log_math;
+import common;
+import scipy.stats;
 
 # We will be taking log(0) = -Inf, so turn off this warning
 numpy.seterr(divide='ignore')
 
 class UncollapsedGibbsSampling(object):
-    import scipy.stats;
-    
     """
     @param gibbs_sampling_maximum_iteration: gibbs sampling maximum iteration
     @param alpha_hyper_parameter: hyper-parameter for alpha sampling, a tuple defining the parameter for an inverse gamma distribution
@@ -57,10 +55,9 @@ class UncollapsedGibbsSampling(object):
         self._sigma_a = sigma_a;
 
         # Data matrix
-        #self._X = self.center_data(data);
+        self._X = common.center_data(data);
         self._X = data;
         (self._N, self._D) = self._X.shape;
-        
 
         if A_prior==None:
             self._A_prior = numpy.zeros((1, self._D));
@@ -91,9 +88,6 @@ class UncollapsedGibbsSampling(object):
             self._A = initial_A;
         
         assert(self._A.shape==(self._K, self._D));
-            
-        # calculate initial feature possess counts
-        #self._m = self._Z.sum(axis=0);
     
     """
     initialize latent features, i.e., matrix A, randomly sample from N(0,1)
@@ -111,14 +105,12 @@ class UncollapsedGibbsSampling(object):
             A[:, [observation_index]] = mean;
         
         return A
-    
 #        self._A = numpy.zeros((self._K, self._D));
 #        # sample every feature
 #        order = numpy.random.permutation(self._K);
 #        for (feature_counter, feature_index) in enumerate(order):
 #            # sample A_k
 #            self.sample_A(feature_index);
-            
 
     """
     initialize latent feature appearance matrix Z according to IBP(alpha)
@@ -172,7 +164,7 @@ class UncollapsedGibbsSampling(object):
             self.regularize_matrices();
             
             if self._alpha_hyper_parameter!=None:
-                self._alpha = self.sample_alpha(self._alpha_hyper_parameter);
+                self._alpha = common.sample_alpha(self._K, self._N, self._alpha_hyper_parameter);
             
             if self._sigma_x_hyper_parameter!=None:
                 self._sigma_x = self.sample_sigma_x(self._sigma_x_hyper_parameter);
@@ -184,7 +176,6 @@ class UncollapsedGibbsSampling(object):
             print("alpha: %f\tsigma_a: %f\tsigma_x: %f" % (self._alpha, self._sigma_a, self._sigma_x));
           
     """
-    
     @param object_index: an int data type, indicates the object index (row index) of Z we want to sample
     """
     def sample_Zn(self, object_index):
@@ -435,72 +426,13 @@ class UncollapsedGibbsSampling(object):
     sample noise variances, i.e., sigma_x
     """
     def sample_sigma_x(self, sigma_x_hyper_parameter):
-        return self.sample_sigma(self._sigma_x_hyper_parameter, self._X - numpy.dot(self._Z, self._A));
+        return common.sample_sigma(self._sigma_x_hyper_parameter, self._X - numpy.dot(self._Z, self._A));
     
     """
     sample feature variance, i.e., sigma_a
     """
     def sample_sigma_a(self, sigma_a_hyper_parameter):
-        return self.sample_sigma(self._sigma_a_hyper_parameter, self._A - numpy.tile(self._A_prior, (self._K, 1)));
-    
-    """
-    sample standard deviation of a multivariant Gaussian distribution
-    @param sigma_hyper_parameter: the hyper-parameter of the gamma distribution
-    @param matrix: a r*c matrix drawn from a multivariant c-dimensional Gaussian distribution with zero mean and identity c*c covariance matrix
-    """
-    @staticmethod
-    def sample_sigma(sigma_hyper_parameter, matrix):
-        assert(sigma_a_hyper_parameter!=None);
-        assert(matrix!=None);
-        assert(type(sigma_hyper_parameter)==tuple);
-        assert(type(matrix)==numpy.ndarray);
-        
-        (sigma_hyper_a, sigma_hyper_b) = sigma_hyper_parameter;
-        (row, column) = matrix.shape;
-
-        # compute the posterior_shape = sigma_hyper_a + n/2, where n = self._D * self._K
-        posterior_shape = sigma_hyper_a + 0.5 * row * column;
-        # compute the posterior_scale = sigma_hyper_b + sum_{k} (A_k - \mu_A)(A_k - \mu_A)^\top/2
-        var = 0;
-        if row>=column:
-            var = numpy.trace(numpy.dot(matrix.transpose(), matrix));
-        else:
-            var = numpy.trace(numpy.dot(matrix, matrix.transpose()));
-        
-        posterior_scale = 1.0/(sigma_hyper_b + var*0.5);
-        tau = scipy.stats.gamma.rvs(posterior_shape,scale=posterior_scale);
-        sigma_a_new = numpy.sqrt(1.0/tau);
-        
-        return sigma_a_new;
-    
-    """
-    sample alpha from conjugate posterior
-    """
-    def sample_alpha(self, alpha_hyper_parameter):        
-        assert(alpha_hyper_parameter!=None);
-        (alpha_hyper_a, alpha_hyper_b) = alpha_hyper_parameter;
-        
-        (N, D) = self._X.shape;
-        (N, K) = self._Z.shape;
-        
-        posterior_shape = alpha_hyper_a + K;
-        
-        H_N = numpy.array([range(self._N)])+1.0;
-        H_N = numpy.sum(1.0/H_N);
-        posterior_scale = 1.0/(alpha_hyper_b + H_N);
-     
-        alpha_new = scipy.stats.gamma.rvs(posterior_shape,scale=posterior_scale);
-        
-        return alpha_new;
-    
-    """
-    center the data, i.e., subtract the mean
-    """
-    @staticmethod
-    def center_data(data):
-        (N, D) = data.shape;
-        data = (data - data.mean())/data.std();
-        return data
+        return common.sample_sigma(self._sigma_a_hyper_parameter, self._A - numpy.tile(self._A_prior, (self._K, 1)));
     
 """
 run IBP on the synthetic 'cambridge bars' dataset, used in the original paper.
@@ -511,7 +443,6 @@ if __name__ == '__main__':
     
     # load the data from the matrix
     mat_vals = scipy.io.loadmat('../../data/cambridge-bars/block_image_set.mat');
-    print mat_vals;
     true_weights = mat_vals['trueWeights']
     features = mat_vals['features']
     data = mat_vals['data']
@@ -532,11 +463,11 @@ if __name__ == '__main__':
     ibp = UncollapsedGibbsSampling(alpha_hyper_parameter, sigma_x_hyper_parameter, sigma_a_hyper_parameter, True);
     #ibp = UncollapsedGibbsSampling(alpha_hyper_parameter);
 
-    ibp._initialize(data, 1.0, 0.2, 1.0, None, None, None);
+    ibp._initialize(data, 0.5, 0.2, 0.5, None, None, None);
     #ibp._initialize(data[0:1000, :], 1.0, 1.0, 1.0, None, features[0:1000, :]);
     
     #print ibp._Z, "\n", ibp._A
-    ibp.sample(500);
+    ibp.sample(20);
     
     print ibp._Z.sum(axis=0)
 
