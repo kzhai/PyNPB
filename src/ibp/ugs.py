@@ -94,24 +94,11 @@ class UncollapsedGibbsSampling(object):
     todo: 2D-prior on A when initializing A matrix
     """
     def initialize_A(self):
-        A = numpy.zeros((self._K, self._D));
+        (mean, std_dev) = self.sufficient_statistics_A();
+        assert(mean.shape==(self._K, self._D));
         
-        order = numpy.random.permutation(self._D);
-        for (observation_counter, observation_index) in enumerate(order):
-            # sample A_d
-            (mean, std_dev) = self.sufficient_statistics_A([observation_index]);
-            assert(std_dev.shape==(self._K, self._K));
-            assert(mean.shape==(self._K, len([observation_index])));
-            A[:, [observation_index]] = mean;
-        
-        return A
-#        self._A = numpy.zeros((self._K, self._D));
-#        # sample every feature
-#        order = numpy.random.permutation(self._K);
-#        for (feature_counter, feature_index) in enumerate(order):
-#            # sample A_k
-#            self.sample_A(feature_index);
-
+        return mean
+    
     """
     initialize latent feature appearance matrix Z according to IBP(alpha)
     """

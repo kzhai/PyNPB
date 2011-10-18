@@ -7,6 +7,7 @@ Implements collapsed Gibbs sampling for the linear-Gaussian infinite latent feat
 
 import numpy, scipy;
 import math, random;
+import common;
 import util.log_math;
 
 # We will be taking log(0) = -Inf, so turn off this warning
@@ -56,7 +57,7 @@ class CollapsedGibbsSampling(object):
         self._sigma_a = sigma_a;
 
         # Data matrix
-        self._X = self.center_data(data);
+        self._X = co.center_data(data);
         (self._N, self._D) = self._X.shape;
         
 
@@ -82,10 +83,20 @@ class CollapsedGibbsSampling(object):
         # record down the number of features
         self._K = self._Z.shape[1];
         
+        # compute matrix M
+        self._M, self._det_M = self.compute_M();
+         
         # initialize A from maximum a posterior estimation
-        self._A_mean = self.initialize_A_mean();
+        #self._A_mean = self.initialize_A_mean();
         # calculate initial feature possess counts
         #self._m = self._Z.sum(axis=0);
+
+    """
+    compute the M matrix
+    """        
+    def compute_M(self):
+        M = numpy.linalg.inv(self._Z.transpose(), self._Z + (self._sigma_x/self._sigma_a)**2*numpy.eye(self._K));
+        return M, numpy.linalg.det(M);
     
     """
     initialize latent features, i.e., matrix A, randomly sample from N(0,1)
@@ -140,8 +151,14 @@ class CollapsedGibbsSampling(object):
             # sample every object
             order = numpy.random.permutation(self._N);
             for (object_counter, object_index) in enumerate(order):
+                # compute M_i
+                ziM = numpy.dot(self._Z[object_index, :], self._M);
+                ziMzi = numpy.dot(ziM, self.Z[object_index, :].transpose());
+                M_i = self._M - numpy.dot(ziM.transpose(), ziM) / (ziMzi-1);
+                det_M_i = self._det_M / (1-ziMzi);
+                
                 # sample Z_n
-                singleton_features = self.sample_Zn(object_index);
+                singleton_features = self.sample_Zn(object_index, M_i, det_M_i);
                 
                 if self._metropolis_hastings_k_new:
                     # sample K_new using metropolis hasting
@@ -171,9 +188,9 @@ class CollapsedGibbsSampling(object):
     
     @param object_index: an int data type, indicates the object index (row index) of Z we want to sample
     """
-    def sample_Zn(self, object_index):
+    def sample_Zn(self, object_index, M_i, det_M_i):
         assert(type(object_index)==int or type(object_index)==numpy.int32 or type(object_index)==numpy.int64);
-        
+
         # calculate initial feature possess counts
         m = self._Z.sum(axis=0);
         
@@ -191,30 +208,69 @@ class CollapsedGibbsSampling(object):
 
         for (feature_counter, feature_index) in enumerate(order):
             if feature_index in non_singleton_features:
-                #old_Znk = self._Z[object_index, feature_index];
+                old_Znk = self._Z[object_index, feature_index];
 
-                # compute the log likelihood when Znk=0
-                self._Z[object_index, feature_index]=0;
-                prob_z0 = numpy.exp(self.log_likelihood_X(numpy.array([self._X[object_index, :]]), numpy.array([self._Z[object_index, :]]), self._A_mean) + log_prob_z0[feature_index]);
-                
                 # compute the log likelihood when Znk=1
                 self._Z[object_index, feature_index]=1;
-                prob_z1 = numpy.exp(self.log_likelihood_X(numpy.array([self._X[object_index, :]]), numpy.array([self._Z[object_index, :]]), self._A_mean) + log_prob_z1[feature_index]);
+                if old_Znk==0:
+                    ziMi = numpy.dot(self._Z[object_index, :], M_i);
+                    assert(ziMi.shape==(1, self._K));
+                    ziMizi = numpy.dot(ziMi, self._Z[object_index, :].transpose());
+                    assert(ziMizi.shape==(1, 1));
+                    M_tmp_1 = M_i - numpy.dot(ziMi.transpose(), ziMi)/(ziMizi + 1);
+                    det_M_tmp_1 = det_M_i / (ziMizi+1);
+                else:
+                    M_tmp_1 = self._M;
+                    det_M_tmp_1 = self._det_M;
+                    
+                prob_z1 = numpy.eye(self._N) - numpy.dot(numpy.dot(self._Z, M_tmp_1), self._Z.transpose());
+                prob_z1 = -0.5/(self._sigma_x**2)*numpy.trace(numpy.dot(numpy.dot(self._X.transpose(), prob_z1), self._X))
+                # take note that M matrix includes the inverse
+                prob_z1 += 0.5*self._D*numpy.log(det_M_tmp_1);
+                # add in prior
+                prob_z1 += log_prob_z1[feature_index];          
+                prob_z1 = numpy.exp(prob_z1);
                 
-                #print prob_z0, prob_z1
+                # compute the log likelihood when Znk=0
+                self._Z[object_index, feature_index]=0;
+                if old_Znk==1:
+                    ziMi = numpy.dot(self._Z[object_index, :], M_i);
+                    assert(ziMi.shape==(1, self._K));
+                    ziMizi = numpy.dot(ziMi, self._Z[object_index, :].transpose());
+                    assert(ziMizi.shape==(1, 1));
+                    M_tmp_0 = M_i - numpy.dot(ziMi.transpose(), ziMi)/(ziMizi + 1);
+                    det_M_tmp_0 = det_M_i / (ziMizi+1);
+                else:
+                    M_tmp_0 = self._M;
+                    det_M_tmp_0 = self._det_M;
+                    
+                prob_z0 = numpy.eye(self._N) - numpy.dot(numpy.dot(self._Z, M_tmp_0), self._Z.transpose());
+                prob_z0 = -0.5/(self._sigma_x**2)*numpy.trace(numpy.dot(numpy.dot(self._X.transpose(), prob_z0), self._X))
+                # take note that M matrix includes the inverse
+                prob_z0 += 0.5*self._D*numpy.log(det_M_tmp_0);
+                # add in prior
+                prob_z0 += log_prob_z0[feature_index];
+                prob_z0 = numpy.exp(prob_z0);
+                
+                print prob_z0, prob_z1
                 
                 Znk_is_0 = prob_z0/(prob_z0+prob_z1);
                 if random.random()<Znk_is_0:
                     self._Z[object_index, feature_index] = 0;
+                    self._M = M_tmp_0;
+                    self._det_M = det_M_tmp_0;
                 else:
                     self._Z[object_index, feature_index] = 1;
+                    self._M = M_tmp_1;
+                    self._det_M = det_M_tmp_1;
                     
         return singleton_features;
 
     """
     sample K_new using metropolis hastings algorithm
+    todo: finish this...
     """
-    def metropolis_hastings_K_new(self, object_index, singleton_features):
+    def metropolis_hastings_K_new(self, object_index, singleton_features, M_i, det_M_i):
         if type(object_index)!=list:
             object_index = [object_index];
     
@@ -223,8 +279,22 @@ class CollapsedGibbsSampling(object):
         
         if K_temp <= 0 and len(singleton_features) <= 0:
             return False;
+        
+        # construct Z_old
+        Z_old = self._Z[object_index, :];
+        K_old = self._K;
+        # compute the probability of using old features
+        prob_old = numpy.eye(self._N)-numpy.dot(numpy.dot(self._Z, self._M), self._Z.transpose());
+        prob_old = -0.5/(self._sigma_x**2) * numpy.trace(numpy.dot(numpy.dot(self._X.transpose(), prob_old), self._X));
+        prob_old -= self._D*(self._N-self._K)*numpy.log(self._sigma_x) + self._K*self._D*numpy.log(self._sigma_a) + 0.5*self._D*self._det_M;        
+        
+        #construct Z_new
+        Z_new = numpy.hstack(self._Z, numpy.zeros(self._D, K_temp));
+        Z_new[object_index, [xrange(-K_temp, 0)]] = 1;
 
-        A_prior = numpy.tile(self._A_prior, (K_temp, 1));
+        M_i_new = numpy.hstack(numpy.hstack(M_i, numpy.zeros(self._K, K_temp)), numpy.hstack(numpy.zeros(K_temp, self._K), (self._sigma_a/self._sigma_x)**2 * numpy.eye(K_temp)));
+        det_M_i_new = det_M_i / ((self._sigma_a/self._sigma_x)**(2 * K_temp))
+
 
         # generate new features from a normal distribution with mean 0 and variance sigma_a, a K_new-by-D matrix
         A_temp = numpy.random.normal(0, self._sigma_a, (K_temp, self._D)) + A_prior;
@@ -237,18 +307,10 @@ class CollapsedGibbsSampling(object):
         # compute the probability of generating new features
         prob_new = numpy.exp(self.log_likelihood_X(self._X[object_index, :], Z_new, A_new));
         
-        # construct the A_old and Z_old
-        A_old = self._A_mean;
-        Z_old = self._Z[object_index, :];
-
-        K_old = self._K;
         assert(A_old.shape==(K_old, self._D));
         assert(A_new.shape==(K_new, self._D));
         assert(Z_old.shape==(len(object_index), K_old));
         assert(Z_new.shape==(len(object_index), K_new));
-        
-        # compute the probability of using old features
-        prob_old = numpy.exp(self.log_likelihood_X(self._X[object_index, :], Z_old, A_old));
         
         # compute the probability of generating new features
         prob_new = prob_new / (prob_old + prob_new);
@@ -260,7 +322,7 @@ class CollapsedGibbsSampling(object):
             self._Z = numpy.hstack((self._Z[:, [k for k in xrange(self._K) if k not in singleton_features]], numpy.zeros((self._N, K_temp))));
             self._Z[object_index, :] = Z_new;
             self._K = K_new;
-            
+                        
         return True;
 
     """
@@ -438,65 +500,6 @@ class CollapsedGibbsSampling(object):
     """
     def sample_sigma_a(self, sigma_a_hyper_parameter):
         return self.sample_sigma(self._sigma_a_hyper_parameter, self._A_mean - numpy.tile(self._A_prior, (self._K, 1)));
-    
-    """
-    sample standard deviation of a multivariant Gaussian distribution
-    @param sigma_hyper_parameter: the hyper-parameter of the gamma distribution
-    @param matrix: a r*c matrix drawn from a multivariant c-dimensional Gaussian distribution with zero mean and identity c*c covariance matrix
-    """
-    @staticmethod
-    def sample_sigma(sigma_hyper_parameter, matrix):
-        assert(sigma_a_hyper_parameter!=None);
-        assert(matrix!=None);
-        assert(type(sigma_hyper_parameter)==tuple);
-        assert(type(matrix)==numpy.ndarray);
-        
-        (sigma_hyper_a, sigma_hyper_b) = sigma_hyper_parameter;
-        (row, column) = matrix.shape;
-
-        # compute the posterior_shape = sigma_hyper_a + n/2, where n = self._D * self._K
-        posterior_shape = sigma_hyper_a + 0.5 * row * column;
-        # compute the posterior_scale = sigma_hyper_b + sum_{k} (A_k - \mu_A)(A_k - \mu_A)^\top/2
-        var = 0;
-        if row>=column:
-            var = numpy.trace(numpy.dot(matrix.transpose(), matrix));
-        else:
-            var = numpy.trace(numpy.dot(matrix, matrix.transpose()));
-        
-        posterior_scale = 1.0/(sigma_hyper_b + var*0.5);
-        tau = scipy.stats.gamma.rvs(posterior_shape,scale=posterior_scale);
-        sigma_a_new = numpy.sqrt(1.0/tau);
-        
-        return sigma_a_new;
-    
-    """
-    sample alpha from conjugate posterior
-    """
-    def sample_alpha(self, alpha_hyper_parameter):        
-        assert(alpha_hyper_parameter!=None);
-        (alpha_hyper_a, alpha_hyper_b) = alpha_hyper_parameter;
-        
-        (N, D) = self._X.shape;
-        (N, K) = self._Z.shape;
-        
-        posterior_shape = alpha_hyper_a + K;
-        
-        H_N = numpy.array([range(self._N)])+1.0;
-        H_N = numpy.sum(1.0/H_N);
-        posterior_scale = 1.0/(alpha_hyper_b + H_N);
-     
-        alpha_new = scipy.stats.gamma.rvs(posterior_shape,scale=posterior_scale);
-        
-        return alpha_new;
-    
-    """
-    center the data, i.e., subtract the mean
-    """
-    @staticmethod
-    def center_data(data):
-        (N, D) = data.shape;
-        data = (data - data.mean())/data.std();
-        return data
     
 """
 run IBP on the synthetic 'cambridge bars' dataset, used in the original paper.
