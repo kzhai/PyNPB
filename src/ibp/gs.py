@@ -123,15 +123,14 @@ class GibbsSampling(object):
     """
     sample alpha from conjugate posterior
     """
-    @staticmethod
-    def sample_alpha(K, N, alpha_hyper_parameter):        
-        assert(alpha_hyper_parameter!=None);
-        assert(type(alpha_hyper_parameter)==tuple);
+    def sample_alpha(self):        
+        assert(self._alpha_hyper_parameter!=None);
+        assert(type(self._alpha_hyper_parameter)==tuple);
     
-        (alpha_hyper_a, alpha_hyper_b) = alpha_hyper_parameter;
+        (alpha_hyper_a, alpha_hyper_b) = self._alpha_hyper_parameter;
         
-        posterior_shape = alpha_hyper_a + K;
-        H_N = numpy.array([range(N)])+1.0;
+        posterior_shape = alpha_hyper_a + self._K;
+        H_N = numpy.array([range(self._N)])+1.0;
         H_N = numpy.sum(1.0/H_N);
         posterior_scale = 1.0/(alpha_hyper_b + H_N);
         
@@ -179,7 +178,29 @@ class GibbsSampling(object):
             log_likelihood += numpy.log(temp_var);            
     
         return log_likelihood
-    
+
+    """
+    compute the M matrix
+    """
+    def compute_M(self):
+        M = numpy.linalg.inv(numpy.dot(self._Z.transpose(), self._Z) + (self._sigma_x/self._sigma_a)**2*numpy.eye(self._K));
+        return M
+
+    """
+    compute the mean and co-variance, i.e., sufficient statistics, of A
+    @param observation_index: a list data type, recorded down the observation indices (column numbers) of A we want to compute
+    """
+    @abc.abstractmethod
+    def sufficient_statistics_A(self):
+        # compute M = (Z' * Z - (sigma_x^2) / (sigma_a^2) * I)^-1
+        M = self.compute_M();
+        # compute the mean of the matrix A
+        mean_A = numpy.dot(M, numpy.dot(self._Z.transpose(), X));
+        # compute the co-variance of the matrix A
+        std_dev_A = numpy.linalg.cholesky(self._sigma_x**2 * M).transpose();
+        
+        return (mean_A, std_dev_A)
+
     """
     center the data, i.e., subtract the mean
     """

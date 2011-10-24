@@ -71,17 +71,14 @@ class UncollapsedGibbsSampling(GibbsSampling):
                 if self._metropolis_hastings_k_new:
                     # sample K_new using metropolis hasting
                     self.metropolis_hastings_K_new(object_index, singleton_features);
-                    
-                # calculate initial feature possess counts
-                #self._m = self._Z.sum(axis=0);
-            
-            self.sample_A();
-
+                
             # regularize matrices
-            self.regularize_matrices();
+            self.regularize_matrices();    
+
+            self.sample_A();
             
             if self._alpha_hyper_parameter!=None:
-                self._alpha = self.sample_alpha(self._K, self._N, self._alpha_hyper_parameter);
+                self._alpha = self.sample_alpha();
             
             if self._sigma_x_hyper_parameter!=None:
                 self._sigma_x = self.sample_sigma_x(self._sigma_x_hyper_parameter);
@@ -119,11 +116,11 @@ class UncollapsedGibbsSampling(GibbsSampling):
 
                 # compute the log likelihood when Znk=0
                 self._Z[object_index, feature_index]=0;
-                prob_z0 = numpy.exp(self.log_likelihood_X(numpy.array([self._X[object_index, :]]), numpy.array([self._Z[object_index, :]]), self._A) + log_prob_z0[feature_index]);
+                prob_z0 = numpy.exp(self.log_likelihood_X(numpy.array([self._X[object_index, :]]), numpy.array([self._Z[object_index, :]])) + log_prob_z0[feature_index]);
                 
                 # compute the log likelihood when Znk=1
                 self._Z[object_index, feature_index]=1;
-                prob_z1 = numpy.exp(self.log_likelihood_X(numpy.array([self._X[object_index, :]]), numpy.array([self._Z[object_index, :]]), self._A) + log_prob_z1[feature_index]);
+                prob_z1 = numpy.exp(self.log_likelihood_X(numpy.array([self._X[object_index, :]]), numpy.array([self._Z[object_index, :]])) + log_prob_z1[feature_index]);
                 
                 Znk_is_0 = prob_z0/(prob_z0+prob_z1);
                 if random.random()<Znk_is_0:
@@ -182,7 +179,7 @@ class UncollapsedGibbsSampling(GibbsSampling):
             self._Z[object_index, :] = Z_new;
             self._K = K_new;
             return True;
-                    
+
         return False;
 
     """
@@ -223,7 +220,7 @@ class UncollapsedGibbsSampling(GibbsSampling):
         assert(A_prior.shape==(self._K, D))
         
         # compute M = (Z' * Z - (sigma_x^2) / (sigma_a^2) * I)^-1
-        M = numpy.linalg.inv(numpy.dot(self._Z.transpose(), self._Z) + (self._sigma_x / self._sigma_a)**2 * numpy.eye(self._K));
+        M = self.compute_M();
         # compute the mean of the matrix A
         mean_A = numpy.dot(M, numpy.dot(self._Z.transpose(), X) + (self._sigma_x / self._sigma_a)**2 * A_prior);
         # compute the co-variance of the matrix A
@@ -266,7 +263,6 @@ class UncollapsedGibbsSampling(GibbsSampling):
         assert(X.shape[0] == Z.shape[0]);
         (N, D) = X.shape;
         (N, K) = Z.shape;
-
         assert(A.shape==(K, D));
         
         log_likelihood = X-numpy.dot(Z, A);
