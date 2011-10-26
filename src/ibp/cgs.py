@@ -35,7 +35,9 @@ class CollapsedGibbsSampling(GibbsSampling):
         
         # compute matrix M
         self._M = self.compute_M();
-        self._det_M = numpy.linalg.det(self._M);
+        self._log_det_M = numpy.log(numpy.linalg.det(self._M));
+
+        assert(numpy.abs(numpy.log(numpy.linalg.det(self._M))-self._log_det_M) < 0.000000001)
     
     """
     initialize latent features, i.e., matrix A, randomly sample from N(0,1)
@@ -63,14 +65,17 @@ class CollapsedGibbsSampling(GibbsSampling):
                 ziM = numpy.dot(self._Z[object_index, :], self._M);
                 ziMzi = numpy.dot(ziM, self._Z[object_index, :].transpose());
                 M_i = self._M - numpy.dot(ziM.transpose(), ziM) / (ziMzi - 1);
-                det_M_i = self._det_M / (1 - ziMzi);
+                log_det_M_i = self._log_det_M - numpy.log(1 - ziMzi);
+                
+                print numpy.log(numpy.linalg.det(M_i)), log_det_M_i
+                assert(numpy.abs(numpy.log(numpy.linalg.det(M_i))-log_det_M_i) < 0.000000001)
                 
                 # sample Z_n
-                singleton_features = self.sample_Zn(object_index, M_i, det_M_i);
+                singleton_features = self.sample_Zn(object_index, M_i, log_det_M_i);
                 
                 if self._metropolis_hastings_k_new:
                     # sample K_new using metropolis hasting
-                    self.metropolis_hastings_K_new(object_index, singleton_features, M_i, det_M_i);
+                    self.metropolis_hastings_K_new(object_index, singleton_features, M_i, log_det_M_i);
                     
                 # regularize matrices
                 #self.regularize_matrices();
@@ -90,7 +95,7 @@ class CollapsedGibbsSampling(GibbsSampling):
     """
     @param object_index: an int data type, indicates the object index (row index) of Z we want to sample
     """
-    def sample_Zn(self, object_index, M_i, det_M_i):
+    def sample_Zn(self, object_index, M_i, log_det_M_i):
         assert(type(object_index) == int or type(object_index) == numpy.int32 or type(object_index) == numpy.int64);
 
         # calculate initial feature possess counts
@@ -118,10 +123,13 @@ class CollapsedGibbsSampling(GibbsSampling):
                     ziMi = numpy.dot(self._Z[object_index, :], M_i);
                     ziMizi = numpy.dot(ziMi, self._Z[object_index, :].transpose());
                     M_tmp_1 = M_i - numpy.dot(ziMi.transpose(), ziMi) / (ziMizi + 1);
-                    det_M_tmp_1 = det_M_i / (ziMizi + 1);
+                    log_det_M_tmp_1 = log_det_M_i - numpy.log(ziMizi + 1);
+                    
+                    print log_det_M_tmp_1, numpy.linalg.det(M_tmp_1), numpy.log(numpy.linalg.det(M_tmp_1));
+                    assert(log_det_M_tmp_1 == numpy.log(numpy.linalg.det(M_tmp_1)));
                 else:
                     M_tmp_1 = self._M;
-                    det_M_tmp_1 = self._det_M;
+                    log_det_M_tmp_1 = self._log_det_M;
                     
                 prob_z1 = self.log_likelihood_X(M_tmp_1);
                 # add in prior
@@ -133,10 +141,10 @@ class CollapsedGibbsSampling(GibbsSampling):
                     ziMi = numpy.dot(self._Z[object_index, :], M_i);
                     ziMizi = numpy.dot(ziMi, self._Z[object_index, :].transpose());
                     M_tmp_0 = M_i - numpy.dot(ziMi.transpose(), ziMi) / (ziMizi + 1);
-                    det_M_tmp_0 = det_M_i / (ziMizi + 1);
+                    log_det_M_tmp_0 = log_det_M_i - numpy.log(ziMizi + 1);
                 else:
                     M_tmp_0 = self._M;
-                    det_M_tmp_0 = self._det_M;
+                    log_det_M_tmp_0 = self._log_det_M;
 
                 prob_z0 = self.log_likelihood_X(M_tmp_0);
                 # add in prior
@@ -148,18 +156,18 @@ class CollapsedGibbsSampling(GibbsSampling):
                 if random.random() < Znk_is_0:
                     self._Z[object_index, feature_index] = 0;
                     self._M = M_tmp_0;
-                    self._det_M = det_M_tmp_0;
+                    self._log_det_M = log_det_M_tmp_0;
                 else:
                     self._Z[object_index, feature_index] = 1;
                     self._M = M_tmp_1;
-                    self._det_M = det_M_tmp_1;
+                    self._log_det_M = log_det_M_tmp_1;
                     
         return singleton_features;
 
     """
     sample K_new using metropolis hastings algorithm
     """
-    def metropolis_hastings_K_new(self, object_index, singleton_features, M_i, det_M_i):
+    def metropolis_hastings_K_new(self, object_index, singleton_features, M_i, log_det_M_i):
         if type(object_index) != list:
             object_index = [object_index];
     
@@ -176,7 +184,7 @@ class CollapsedGibbsSampling(GibbsSampling):
         #Z_old = self._Z;
         #K_old = self._K;
         #M_old = self._M;
-        #det_M_old = self._det_M;
+        #det_M_old = self._log_det_M;
         #prob_old = numpy.eye(self._N)-numpy.dot(numpy.dot(Z_old, M_old), Z_old.transpose());
         #prob_old = -0.5/(self._sigma_x**2) * numpy.trace(numpy.dot(numpy.dot(self._X.transpose(), prob_old), self._X));
         #prob_old -= self._D*(self._N-K_old)*numpy.log(self._sigma_x) + K_old*self._D*numpy.log(self._sigma_a) + 0.5*self._D*numpy.log(det_M_old);
@@ -189,7 +197,7 @@ class CollapsedGibbsSampling(GibbsSampling):
 
         # construct M_new
         M_new = self.compute_M(Z_new);
-        det_M_new = numpy.linalg.det(M_new);
+        log_det_M_new = numpy.log(numpy.linalg.det(M_new));
 
         #M_i_new = numpy.vstack((numpy.hstack((M_i, numpy.zeros((self._K, K_temp)))), numpy.hstack((numpy.zeros((K_temp, self._K)), (self._sigma_a / self._sigma_x) ** 2 * numpy.eye(K_temp)))));
         #det_M_i_new = det_M_i / ((self._sigma_a / self._sigma_x) ** (2 * K_temp));
@@ -200,24 +208,21 @@ class CollapsedGibbsSampling(GibbsSampling):
         # compute the probability of using new features
         prob_new = self.log_likelihood_X(M_new, Z_new);
         
-        print prob_old, prob_new;
-        
         #K_new = self._K + K_temp;
-        #det_M_new = det_M_i_new / (ziMizi + 1);
+        #log_det_M_new = det_M_i_new / (ziMizi + 1);
         #prob_new = numpy.eye(self._N)-numpy.dot(numpy.dot(Z_new, M_new), Z_new.transpose());
         #prob_new = -0.5/(self._sigma_x**2) * numpy.trace(numpy.dot(numpy.dot(self._X.transpose(), prob_new), self._X));
-        #prob_new -= self._D*(self._N-K_new)*numpy.log(self._sigma_x) + K_new*self._D*numpy.log(self._sigma_a) + 0.5*self._D*numpy.log(det_M_new);
+        #prob_new -= self._D*(self._N-K_new)*numpy.log(self._sigma_x) + K_new*self._D*numpy.log(self._sigma_a) + 0.5*self._D*numpy.log(log_det_M_new);
 
         # compute the probability of generating new features
         accept_new = 1 / (1 + numpy.exp(prob_old - prob_new));
-        print "take new features with prob", accept_new
         
         # if we accept the proposal, we will replace old A and Z matrices
         if random.random() < accept_new:
             self._Z = Z_new;
             self._K = self._Z.shape[1];
             self._M = M_new;
-            self._det_M = det_M_new;
+            self._log_det_M = log_det_M_new;
             return True;
 
         return False;
@@ -244,7 +249,7 @@ class CollapsedGibbsSampling(GibbsSampling):
         
         # compute matrix M
         self._M = self.compute_M();
-        self._det_M = numpy.linalg.det(self._M);
+        self._log_det_M = numpy.log(numpy.linalg.det(self._M));
 
     """
     compute the log-likelihood of the data X
@@ -255,9 +260,9 @@ class CollapsedGibbsSampling(GibbsSampling):
     def log_likelihood_X(self, M=None, Z=None, X=None):
         if M == None:
             M = self._M;
-            det_M = self._det_M;
+            log_det_M = self._log_det_M;
         else:
-            det_M = numpy.linalg.det(M);
+            log_det_M = numpy.log(numpy.linalg.det(M));
         if Z == None:
             Z = self._Z;
         if X == None:
@@ -273,7 +278,7 @@ class CollapsedGibbsSampling(GibbsSampling):
         log_likelihood = numpy.eye(N) - numpy.dot(numpy.dot(Z, M), Z.transpose());
         log_likelihood = -0.5 / (self._sigma_x ** 2) * numpy.trace(numpy.dot(numpy.dot(X.transpose(), log_likelihood), X));
         log_likelihood -= D * (N - K) * numpy.log(self._sigma_x) + K * D * numpy.log(self._sigma_a);
-        log_likelihood += 0.5 * D * numpy.log(det_M);
+        log_likelihood += 0.5 * D * log_det_M;
         log_likelihood -= 0.5 * N * D * numpy.log(2 * numpy.pi);
         
         return log_likelihood
