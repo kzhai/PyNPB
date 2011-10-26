@@ -11,11 +11,11 @@ from gs import GibbsSampling;
 import util.log_math;
 
 # We will be taking log(0) = -Inf, so turn off this warning
-#numpy.seterr(divide='ignore')
+numpy.seterr(divide='ignore')
 
 class CollapsedGibbsSampling(GibbsSampling):
     import scipy.stats;
-    
+
     """
     @param data: a NxD NumPy data matrix
     @param alpha: IBP hyper parameter
@@ -329,23 +329,24 @@ if __name__ == '__main__':
     print ibp._Z.sum(axis=0)
 
     import matplotlib.pyplot
-    
+    from util.scaled_image import scaledimage
+
     # intensity plots of
     # -ground truth factor-feature weights (top)
     # -learned factor-feature weights (bottom)
-    K = max(len(true_weights), len(ibp._A_mean))
-    (fig, subaxes) = matplotlib.pyplot.subplots(2, K);
+    K = max(len(true_weights), len(ibp._A))
+    (fig, subaxes) = P.subplots(2, K)
     for sa in subaxes.flatten():
         sa.set_visible(False)
     fig.suptitle('Ground truth (top) vs learned factors (bottom)')
     for (idx, trueFactor) in enumerate(true_weights):
         ax = subaxes[0, idx]
         ax.set_visible(True)
-        util.scaled_image.scaled_image(trueFactor.reshape(6,6),
-                    pixel_width=3, axes=ax)
-    for (idx, learnedFactor) in enumerate(ibp._A_mean):
+        scaledimage(trueFactor.reshape(6,6),
+                    pixwidth=3, ax=ax)
+    for (idx, learnedFactor) in enumerate(ibp._A):
         ax = subaxes[1, idx]
-        util.scaled_image.scaled_image(learnedFactor.reshape(6,6),
-                    pixel_width=3, axes=ax)
+        scaledimage(learnedFactor.reshape(6,6),
+                    pixwidth=3, ax=ax)
         ax.set_visible(True)
-    matplotlib.pyplot.show()
+    P.show() 
