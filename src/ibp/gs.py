@@ -182,8 +182,12 @@ class GibbsSampling(object):
     """
     compute the M matrix
     """
-    def compute_M(self):
-        M = numpy.linalg.inv(numpy.dot(self._Z.transpose(), self._Z) + (self._sigma_x/self._sigma_a)**2*numpy.eye(self._K));
+    def compute_M(self, Z=None):
+        if Z==None:
+            Z = self._Z;
+            
+        K = Z.shape[1];
+        M = numpy.linalg.inv(numpy.dot(Z.transpose(), Z) + (self._sigma_x/self._sigma_a)**2*numpy.eye(K));
         return M
 
     """
