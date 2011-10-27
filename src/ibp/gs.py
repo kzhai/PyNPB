@@ -41,7 +41,7 @@ class GibbsSampling(object):
     @param initializ_Z: seeded Z matrix
     """
     @abc.abstractmethod
-    def _initialize(self, data, alpha=1.0, sigma_x=1.0, sigma_a=1.0, initial_Z=None):
+    def _initialize(self, data, alpha=1.0, sigma_a=1.0, sigma_x=1.0, A_prior=None, initial_Z=None):
         self._alpha = alpha;
         self._sigma_x = sigma_x;
         self._sigma_a = sigma_a;
@@ -64,6 +64,15 @@ class GibbsSampling(object):
                 
         # record down the number of features
         self._K = self._Z.shape[1];
+        
+        if A_prior==None:
+            self._A_prior = numpy.zeros((1, self._D));
+        else:
+            self._A_prior = A_prior; 
+        assert(self._A_prior.shape==(1, self._D));
+        
+        self._A = self.map_estimate_A();
+        assert(self._A.shape==(self._K, self._D));
 
         return;
 
@@ -89,6 +98,16 @@ class GibbsSampling(object):
         Z = Z.astype(numpy.int);
         
         return Z
+
+    """
+    maximum a posterior estimation of matrix A
+    todo: 2D-prior on A when initializing A matrix
+    """
+    def map_estimate_A(self):
+        (mean, std_dev) = self.sufficient_statistics_A();
+        assert(mean.shape==(self._K, self._D));
+        
+        return mean
 
     """
     sample standard deviation of a multivariant Gaussian distribution
@@ -194,12 +213,11 @@ class GibbsSampling(object):
     compute the mean and co-variance, i.e., sufficient statistics, of A
     @param observation_index: a list data type, recorded down the observation indices (column numbers) of A we want to compute
     """
-    @abc.abstractmethod
     def sufficient_statistics_A(self):
         # compute M = (Z' * Z - (sigma_x^2) / (sigma_a^2) * I)^-1
         M = self.compute_M();
         # compute the mean of the matrix A
-        mean_A = numpy.dot(M, numpy.dot(self._Z.transpose(), X));
+        mean_A = numpy.dot(M, numpy.dot(self._Z.transpose(), self._X));
         # compute the co-variance of the matrix A
         std_dev_A = numpy.linalg.cholesky(self._sigma_x**2 * M).transpose();
         

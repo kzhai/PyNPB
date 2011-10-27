@@ -21,36 +21,14 @@ class UncollapsedGibbsSampling(GibbsSampling):
     @param sigma_a: standard derivation of the feature, often referred as sigma_f as well
     @param initializ_Z: seeded Z matrix
     """
-    def _initialize(self, data, alpha=1.0, sigma_x=1.0, sigma_a=1.0, initial_Z=None, A_prior=None, initial_A=None):
+    def _initialize(self, data, alpha=1.0, sigma_a=1.0, sigma_x=1.0, initial_Z=None, A_prior=None, initial_A=None):
         # Data matrix
-        super(UncollapsedGibbsSampling, self)._initialize(self.center_data(data), alpha, sigma_x, sigma_a, initial_Z);
-        #self._X = common.center_data(data);
-        #(self._N, self._D) = self._X.shape;
+        super(UncollapsedGibbsSampling, self)._initialize(self.center_data(data), alpha, sigma_a, sigma_x, A_prior, initial_Z);
 
-        if A_prior==None:
-            self._A_prior = numpy.zeros((1, self._D));
-        else:
-            self._A_prior = A_prior; 
-        
-        assert(self._A_prior.shape==(1, self._D));
-        
-        if initial_A==None:
-            # initialize A from maximum a posterior estimation
-            self._A = self.initialize_A();
-        else:
+        if initial_A!=None:
+            # this will replace the A matrix generated in the super class. 
             self._A = initial_A;
-        
         assert(self._A.shape==(self._K, self._D));
-    
-    """
-    initialize latent features, i.e., matrix A, randomly sample from N(0,1)
-    todo: 2D-prior on A when initializing A matrix
-    """
-    def initialize_A(self):
-        (mean, std_dev) = self.sufficient_statistics_A();
-        assert(mean.shape==(self._K, self._D));
-        
-        return mean
     
     """
     sample the corpus to train the parameters
@@ -116,11 +94,15 @@ class UncollapsedGibbsSampling(GibbsSampling):
 
                 # compute the log likelihood when Znk=0
                 self._Z[object_index, feature_index]=0;
-                prob_z0 = numpy.exp(self.log_likelihood_X(numpy.array([self._X[object_index, :]]), numpy.array([self._Z[object_index, :]])) + log_prob_z0[feature_index]);
+                prob_z0 = self.log_likelihood_X(self._X[[object_index], :], self._Z[[object_index], :]);
+                prob_z0 += log_prob_z0[feature_index];
+                prob_z0 = numpy.exp(prob_z0);
                 
                 # compute the log likelihood when Znk=1
                 self._Z[object_index, feature_index]=1;
-                prob_z1 = numpy.exp(self.log_likelihood_X(numpy.array([self._X[object_index, :]]), numpy.array([self._Z[object_index, :]])) + log_prob_z1[feature_index]);
+                prob_z1 = self.log_likelihood_X(self._X[[object_index], :], self._Z[[object_index], :]);
+                prob_z1 += log_prob_z1[feature_index]
+                prob_z1 = numpy.exp(prob_z1);
                 
                 Znk_is_0 = prob_z0/(prob_z0+prob_z1);
                 if random.random()<Znk_is_0:
@@ -148,7 +130,7 @@ class UncollapsedGibbsSampling(GibbsSampling):
         A_temp = numpy.random.normal(0, self._sigma_a, (K_temp, self._D)) + A_prior;
         A_new = numpy.vstack((self._A[[k for k in xrange(self._K) if k not in singleton_features], :], A_temp));
         # generate new z matrix row
-        Z_new = numpy.hstack((numpy.array([self._Z[object_index, [k for k in xrange(self._K) if k not in singleton_features]]]), numpy.ones((len(object_index), K_temp))));
+        Z_new = numpy.hstack((self._Z[object_index, [k for k in xrange(self._K) if k not in singleton_features]], numpy.ones((len(object_index), K_temp))));
         
         K_new = self._K + K_temp - len(singleton_features);
         
@@ -340,7 +322,6 @@ if __name__ == '__main__':
 
     ibp._initialize(data, 0.5, 0.2, 0.5, None, None, None);
     #ibp._initialize(data[0:1000, :], 1.0, 1.0, 1.0, None, features[0:1000, :]);
-    
     #print ibp._Z, "\n", ibp._A
     ibp.sample(20);
     
