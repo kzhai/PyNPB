@@ -51,7 +51,7 @@ class SemiCollapsedGibbsSampling(GibbsSampling):
                     self.metropolis_hastings_K_new(object_index, singleton_features);
                 
             # regularize matrices
-            self.regularize_matrices();    
+            #self.regularize_matrices();    
 
             self.sample_A();
             
@@ -127,48 +127,60 @@ class SemiCollapsedGibbsSampling(GibbsSampling):
             return False;
         
         Z_i_tmp = self._Z[object_index, :];
-        Z_i_tmp = Z_i_tmp[:, singleton_features] = 0;
+        Z_i_tmp[:, singleton_features] = 0;
         X_residue = self._X[object_index, :] - numpy.dot(Z_i_tmp, self._A);
 
-        log_old_new = 0;
-        order = numpy.random.permutation(self._D);
-        for (observation_counter, observation_index) in enumerate(order):
-            log_old_new -= 
-        
-        # generate new features from a normal distribution with mean 0 and variance sigma_a, a K_new-by-D matrix
-        A_prior = numpy.tile(self._A_prior, (K_temp, 1));
-        A_temp = numpy.random.normal(0, self._sigma_a, (K_temp, self._D)) + A_prior;
-        A_new = numpy.vstack((self._A[[k for k in xrange(self._K) if k not in singleton_features], :], A_temp));
-        # generate new z matrix row
-        
-        K_new = self._K + K_temp - len(singleton_features);
-        
-        # compute the probability of generating new features
-        prob_new = numpy.exp(self.log_likelihood_X(self._X[object_index, :], Z_new, A_new));
-        
-        # construct the A_old and Z_old
-        A_old = self._A;
-        Z_old = self._Z[object_index, :];
-        K_old = self._K;
+        log_new_old = 0;
+        for d in xrange(self._D):
+            log_new_old -= 0.5 * numpy.log( (self._sigma_x**2 + K_new * self._sigma_a**2) / (self._sigma_x**2 + K_old * self._sigma_a**2) );
+            log_new_old -= 0.5 * X_residue[0, d]**2 * (1/(self._sigma_x**2 + K_new * self._sigma_a**2) - 1/(self._sigma_x**2 + K_old * self._sigma_a**2));
+            
+        accept_new = 1.0/(1.0 + 1.0/numpy.exp(log_new_old));
 
-        assert(A_old.shape==(K_old, self._D));
-        assert(A_new.shape==(K_new, self._D));
-        assert(Z_old.shape==(len(object_index), K_old));
-        assert(Z_new.shape==(len(object_index), K_new));
+        '''
+        # compute the log likelihood if we use old features
+        Z_i_old = numpy.ones((1, K_old));
+        M_old = self.compute_M(Z_i_old);
+        assert(M_old.shape==(K_old, K_old));
+        log_likelihood_old = 1-numpy.dot(numpy.dot(Z_i_old, M_old), Z_i_old.transpose());
+        log_likelihood_old = -numpy.trace(numpy.dot(numpy.dot(X_residue.transpose(), log_likelihood_old), X_residue));
+        log_likelihood_old /= (2 * self._sigma_x**2);
+        log_likelihood_old += self._D / 2 * numpy.linalg.det(M_old);
+        log_likelihood_old -= (1-K_old)*self._D * numpy.log(self._sigma_x) + (K_old*self._D) * numpy.log(self._sigma_a);
         
-        # compute the probability of using old features
-        prob_old = numpy.exp(self.log_likelihood_X(self._X[object_index, :], Z_old, A_old));
+        # compute the log likelihood if we use new features
+        Z_i_new = numpy.ones((1, K_new));
+        M_new = self.compute_M(Z_i_new);
+        assert(M_new.shape==(K_new, K_new));
+        log_likelihood_new = 1-numpy.dot(numpy.dot(Z_i_new, M_new), Z_i_new.transpose());
+        log_likelihood_new = -numpy.trace(numpy.dot(numpy.dot(X_residue.transpose(), log_likelihood_new), X_residue));
+        log_likelihood_new /= (2 * self._sigma_x**2);
+        log_likelihood_new += self._D / 2 * numpy.linalg.det(M_new);
+        log_likelihood_new -= (1-K_new)*self._D * numpy.log(self._sigma_x) + (K_new*self._D) * numpy.log(self._sigma_a);
         
-        # compute the probability of generating new features
-        prob_new = prob_new / (prob_old + prob_new);
+        # compute the probability of accepting new features                
+        accept_new = 1.0/(1.0 + numpy.exp(log_likelihood_old-log_likelihood_new));
+        '''
+
+        self._A = self._A[[k for k in xrange(self._K) if k not in singleton_features], :];
+        self._Z = self._Z[:, [k for k in xrange(self._K) if k not in singleton_features]];
+        self._K -= K_old
         
         # if we accept the proposal, we will replace old A and Z matrices
-        if random.random()<prob_new:
+        if random.random()>accept_new:
+            K_new = K_old;
+        
+        if K_new>0:
             # construct A_new and Z_new
-            self._A = A_new;
-            self._Z = numpy.hstack((self._Z[:, [k for k in xrange(self._K) if k not in singleton_features]], numpy.zeros((self._N, K_temp))));
-            self._Z[object_index, :] = Z_new;
-            self._K = K_new;
+            Z_new = numpy.zeros((self._N, K_new));
+            Z_i_new = numpy.ones((1, K_new));
+            Z_new[object_index, :] = Z_i_new;
+            M_new = self.compute_M(Z_i_new);
+            A_new = numpy.dot(M_new, numpy.dot(Z_new.transpose(), self._X - numpy.dot(self._Z, self._A)));
+            self._A = numpy.vstack((self._A, A_new));
+            self._Z = numpy.hstack((self._Z, Z_new));
+            #self._Z[object_index, :] = Z_i_new;
+            self._K += K_new
             return True;
 
         return False;
@@ -327,7 +339,7 @@ if __name__ == '__main__':
     # initialize the model
     ibp = SemiCollapsedGibbsSampling(alpha_hyper_parameter, sigma_x_hyper_parameter, sigma_a_hyper_parameter, True);
 
-    ibp._initialize(data, 0.5, 0.2, 0.5, None, None, None);
+    ibp._initialize(data, 1.0, 0.2, 0.5, None, None, None);
 
     ibp.sample(20);
     
