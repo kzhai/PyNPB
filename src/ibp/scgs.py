@@ -33,7 +33,7 @@ class SemiCollapsedGibbsSampling(GibbsSampling):
     """
     sample the corpus to train the parameters
     """
-    def sample(self, iteration):
+    def sample(self, iteration, directory="../../output/tmp-output/"):
         assert(self._Z.shape==(self._N, self._K));
         assert(self._A.shape==(self._K, self._D));
         assert(self._X.shape==(self._N, self._D));
@@ -66,7 +66,10 @@ class SemiCollapsedGibbsSampling(GibbsSampling):
                 
             print("iteration: %i\tK: %i\tlikelihood: %f" % (iter, self._K, self.log_likelihood_model()));
             print("alpha: %f\tsigma_a: %f\tsigma_x: %f" % (self._alpha, self._sigma_a, self._sigma_x));
-          
+            
+            if (iter+1) % self._snapshot_interval == 0:
+                self.export_snapshot(directory, iter+1);
+                
     """
     @param object_index: an int data type, indicates the object index (row index) of Z we want to sample
     """
@@ -316,7 +319,7 @@ class SemiCollapsedGibbsSampling(GibbsSampling):
 run IBP on the synthetic 'cambridge bars' dataset, used in the original paper.
 """
 if __name__ == '__main__':
-    import scipy.io;
+    import scipy.mat_vec_io;
     #import util.scaled_image;
     
     # load the data from the matrix
@@ -339,7 +342,7 @@ if __name__ == '__main__':
     # initialize the model
     ibp = SemiCollapsedGibbsSampling(alpha_hyper_parameter, sigma_x_hyper_parameter, sigma_a_hyper_parameter, True);
 
-    ibp._initialize(data, 1.0, 0.2, 0.5, None, None, None);
+    ibp._initialize(data[1:100, :], 0.5, 0.2, 0.5, None, None, None);
 
     ibp.sample(20);
     

@@ -33,7 +33,7 @@ class UncollapsedGibbsSampling(GibbsSampling):
     """
     sample the corpus to train the parameters
     """
-    def sample(self, iteration):
+    def sample(self, iteration, directory="../../output/tmp-output/"):
         assert(self._Z.shape==(self._N, self._K));
         assert(self._A.shape==(self._K, self._D));
         assert(self._X.shape==(self._N, self._D));
@@ -66,6 +66,9 @@ class UncollapsedGibbsSampling(GibbsSampling):
                 
             print("iteration: %i\tK: %i\tlikelihood: %f" % (iter, self._K, self.log_likelihood_model()));
             print("alpha: %f\tsigma_a: %f\tsigma_x: %f" % (self._alpha, self._sigma_a, self._sigma_x));
+            
+            if (iter+1) % self._snapshot_interval == 0:
+                self.export_snapshot(directory, iter+1);
           
     """
     @param object_index: an int data type, indicates the object index (row index) of Z we want to sample
@@ -130,7 +133,8 @@ class UncollapsedGibbsSampling(GibbsSampling):
         A_temp = numpy.random.normal(0, self._sigma_a, (K_temp, self._D)) + A_prior;
         A_new = numpy.vstack((self._A[[k for k in xrange(self._K) if k not in singleton_features], :], A_temp));
         # generate new z matrix row
-        Z_new = numpy.hstack((self._Z[object_index, [k for k in xrange(self._K) if k not in singleton_features]], numpy.ones((len(object_index), K_temp))));
+        #print K_temp, object_index, [k for k in xrange(self._K) if k not in singleton_features], self._Z[[object_index], [k for k in xrange(self._K) if k not in singleton_features]].shape, numpy.ones((len(object_index), K_temp)).shape
+        Z_new = numpy.hstack((self._Z[[object_index], [k for k in xrange(self._K) if k not in singleton_features]], numpy.ones((len(object_index), K_temp))));
         
         K_new = self._K + K_temp - len(singleton_features);
         
@@ -295,7 +299,7 @@ class UncollapsedGibbsSampling(GibbsSampling):
 run IBP on the synthetic 'cambridge bars' dataset, used in the original paper.
 """
 if __name__ == '__main__':
-    import scipy.io;
+    import scipy.mat_vec_io;
     #import util.scaled_image;
     
     # load the data from the matrix
@@ -320,10 +324,10 @@ if __name__ == '__main__':
     ibp = UncollapsedGibbsSampling(alpha_hyper_parameter, sigma_x_hyper_parameter, sigma_a_hyper_parameter, True);
     #ibp = UncollapsedGibbsSampling(alpha_hyper_parameter);
 
-    ibp._initialize(data, 0.5, 0.2, 0.5, None, None, None);
+    ibp._initialize(data[1:100, :], 1.0, 0.2, 0.5, None, None, None);
     #ibp._initialize(data[0:1000, :], 1.0, 1.0, 1.0, None, features[0:1000, :]);
     #print ibp._Z, "\n", ibp._A
-    ibp.sample(20);
+    ibp.sample(30);
     
     print ibp._Z.sum(axis=0)
 

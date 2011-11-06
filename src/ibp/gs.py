@@ -2,6 +2,11 @@ import abc;
 import numpy, scipy;
 import math;
 
+import util.mat_vec_io
+
+"""
+
+"""
 class GibbsSampling(object):
     __metaclass__ = abc.ABCMeta;
     
@@ -16,7 +21,8 @@ class GibbsSampling(object):
                  alpha_hyper_parameter=None, 
                  sigma_a_hyper_parameter=None, 
                  sigma_x_hyper_parameter=None,
-                 metropolis_hastings_k_new=True):
+                 metropolis_hastings_k_new=True,
+                 snapshot_interval = 10):
         # initialize the hyper-parameter for sampling _alpha
         # a value of None is a gentle way to say "do not sampling _alpha"
         assert(alpha_hyper_parameter==None or type(alpha_hyper_parameter)==tuple);
@@ -32,7 +38,14 @@ class GibbsSampling(object):
         
         #self._real_valued_latent_feature = real_valued_latent_feature;
         self._metropolis_hastings_k_new = metropolis_hastings_k_new;
+        
+        self._snapshot_interval = snapshot_interval;
 
+        self._x_title = "X-matrix-";
+        self._z_title = "Z-matrix-";
+        self._a_title = "A-matrix-";
+        self._hyper_parameter_title = "Hyper-parameter-vector-";
+        
     """
     @param data: a NxD NumPy data matrix
     @param alpha: IBP hyper parameter
@@ -47,7 +60,7 @@ class GibbsSampling(object):
         self._sigma_a = sigma_a;
         
         # Data matrix
-        self._X = data;
+        self._X = self.center_data(data);
         (self._N, self._D) = self._X.shape;
         
         if(initial_Z == None):
@@ -87,7 +100,7 @@ class GibbsSampling(object):
             # Z.sum(axis=0)/i: compute the popularity of every dish, computes the probability of sampling that dish
             sample_dish = (numpy.random.uniform(0,1,(1,Z.shape[1])) < (Z.sum(axis=0).astype(numpy.float) / i));
             # sample a value from the poisson distribution, defines the number of new features
-            K_new = scipy.stats.poisson.rvs((self._alpha / i));
+            K_new = scipy.stats.poisson.rvs((self._alpha * 1.0 / i));
             # horizontally stack or append the new dishes to current object's observation vector, i.e., the vector Z_{n*}
             sample_dish = numpy.hstack((sample_dish, numpy.ones((1, K_new))));
             # append the matrix horizontally and then vertically to the Z matrix
@@ -200,6 +213,7 @@ class GibbsSampling(object):
 
     """
     compute the M matrix
+    @param Z: default to None, if set, M matrix will be computed according to the passed in Z matrix
     """
     def compute_M(self, Z=None):
         if Z==None:
@@ -223,6 +237,35 @@ class GibbsSampling(object):
         
         return (mean_A, std_dev_A)
 
+    """
+    @param directory: the export directory
+    @param index: the export index, e.g., usually the iteration count, append to the title
+    """
+    def export_snapshot(self, directory, index):
+        assert(directory.endswith("/"));
+        util.mat_vec_io.export_matrix(directory + self._a_title + str(index), self._A);
+        util.mat_vec_io.export_matrix(directory + self._x_title + str(index), self._X);
+        util.mat_vec_io.export_matrix(directory + self._z_title + str(index), self._Z);
+        vector = numpy.array([self._alpha, self._sigma_a, self._sigma_x]);
+        util.mat_vec_io.export_vector(directory + self._hyper_parameter_title + str(index), vector);
+        print "successfully export the snapshot to " + directory + " for iteration " + str(index) + "..."
+
+    """
+    @param directory: the import director
+    @param index: the import index, e.g., usually the iteration count, append to the title
+    """
+    def import_snapshot(self, directory, index):
+        assert(directory.endswith("/"));
+        self._A = util.mat_vec_io.import_matrix(directory + self._a_title + str(index));
+        self._X = util.mat_vec_io.import_matrix(directory + self._x_title + str(index));
+        self._Z = util.mat_vec_io.import_matrix(directory + self._z_title + str(index));
+        (self._N, self._K) = self._Z.shape;
+        (self._N, self._D) = self._X.shape;
+        assert(self._Z.shape[0] == self._X.shape[0]);
+        assert(self._A.shape==(self._K, self._D));
+        (self._alpha, self._sigma_a, self._sigma_x) = util.mat_vec_io.import_vector(directory + self._hyper_parameter_title + str(index));
+        print "successfully import the snapshot from " + directory + " for iteration " + str(index) + "..."
+    
     """
     center the data, i.e., subtract the mean
     """

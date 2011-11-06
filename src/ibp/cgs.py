@@ -42,7 +42,7 @@ class CollapsedGibbsSampling(GibbsSampling):
     """
     sample the corpus to train the parameters
     """
-    def sample(self, iteration):
+    def sample(self, iteration, directory="../../output/tmp-output/"):
         assert(self._Z.shape == (self._N, self._K));
         assert(self._X.shape == (self._N, self._D));
         
@@ -59,8 +59,6 @@ class CollapsedGibbsSampling(GibbsSampling):
                 ziMzi = numpy.dot(ziM, self._Z[[object_index], :].transpose());
                 M_i = self._M - numpy.dot(ziM.transpose(), ziM) / (ziMzi - 1);
                 log_det_M_i = self._log_det_M - numpy.log(1 - ziMzi);
-                
-                #assert(numpy.abs(numpy.log(numpy.linalg.det(M_i))-log_det_M_i) < 0.000000001)
                 
                 # sample Z_n
                 singleton_features = self.sample_Zn(object_index, M_i, log_det_M_i);
@@ -82,6 +80,9 @@ class CollapsedGibbsSampling(GibbsSampling):
                 
             print("iteration: %i\tK: %i\tlikelihood: %f" % (iter, self._K, self.log_likelihood_model()));
             print("alpha: %f\tsigma_a: %f\tsigma_x: %f" % (self._alpha, self._sigma_a, self._sigma_x));
+            
+            if (iter+1) % self._snapshot_interval == 0:
+                self.export_snapshot(directory, iter+1);
 
     """
     @param object_index: an int data type, indicates the object index (row index) of Z we want to sample
@@ -158,13 +159,10 @@ class CollapsedGibbsSampling(GibbsSampling):
     sample K_new using metropolis hastings algorithm
     """
     def metropolis_hastings_K_new(self, object_index, singleton_features, M_i, log_det_M_i):
-        if type(object_index) != list:
-            object_index = [object_index];
-    
         # sample K_new from the metropolis hastings proposal distribution, i.e., a poisson distribution with mean \frac{\alpha}{N}
         K_temp = scipy.stats.poisson.rvs(self._alpha / self._N);
         
-        if K_temp <= 0:
+        if K_temp <= 0 and len(singleton_features)<=0:
             return False;
         
         # compute the probability of using old features
@@ -173,14 +171,14 @@ class CollapsedGibbsSampling(GibbsSampling):
         # construct Z_new
         #Z_new = self._Z[:, [k for k in range(self._K) if k not in singleton_features]];
         Z_new = numpy.hstack((self._Z, numpy.zeros((self._N, K_temp))));
-        Z_new[object_index, [xrange(-K_temp, 0)]] = 1;
-        Z_new[object_index, singleton_features] = 0;
+        Z_new[[object_index], [xrange(-K_temp, 0)]] = 1;
+        Z_new[[object_index], singleton_features] = 0;
 
         # construct M_new
         M_i_new = numpy.vstack((numpy.hstack((M_i, numpy.zeros((self._K, K_temp)))), numpy.hstack((numpy.zeros((K_temp, self._K)), (self._sigma_a / self._sigma_x) ** 2 * numpy.eye(K_temp)))));
         log_det_M_i_new = log_det_M_i + 2 * K_temp * numpy.log(self._sigma_a / self._sigma_x);
-        ziMi = numpy.dot(Z_new[object_index, :], M_i_new);
-        ziMizi = numpy.dot(ziMi, Z_new[object_index, :].transpose());
+        ziMi = numpy.dot(Z_new[[object_index], :], M_i_new);
+        ziMizi = numpy.dot(ziMi, Z_new[[object_index], :].transpose());
         M_new = M_i_new - numpy.dot(ziMi.transpose(), ziMi) / (ziMizi + 1);
         log_det_M_new = log_det_M_i_new - numpy.log(ziMizi + 1);
         K_new = self._K + K_temp;
@@ -273,7 +271,7 @@ class CollapsedGibbsSampling(GibbsSampling):
 run IBP on the synthetic 'cambridge bars' dataset, used in the original paper.
 """
 if __name__ == '__main__':
-    import scipy.io;
+    import scipy.mat_vec_io;
     #import util.scaled_image;
     
     # load the data from the matrix
@@ -294,7 +292,7 @@ if __name__ == '__main__':
     # initialize the model
     ibp = CollapsedGibbsSampling(alpha_hyper_parameter, sigma_x_hyper_parameter, sigma_a_hyper_parameter, True);
 
-    ibp._initialize(data[0:100, :], 0.5, 0.2, 0.5);
+    ibp._initialize(data[1:100, :], 0.5, 0.2, 0.5);
     #ibp._initialize(data[0:1000, :], 1.0, 1.0, 1.0, None, features[0:1000, :]);
     
     #print ibp._Z, "\n", ibp._A_mean
