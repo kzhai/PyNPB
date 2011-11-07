@@ -1,1 +1,5 @@
-Decompress the data.tar.gz in current directory.
+==========Indian Buffet Process==========
+
+Collapsed Gibbs sampling:
+Uncollapsed Gibbs sampling:
+Semi-collapsed Gibbs sampling:
