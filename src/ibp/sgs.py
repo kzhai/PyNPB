@@ -13,7 +13,7 @@ import scipy.stats;
 # We will be taking log(0) = -Inf, so turn off this warning
 numpy.seterr(divide='ignore')
 
-class SemiCollapsedGibbsSampling(GibbsSampling):
+class SemicollapsedGibbsSampling(GibbsSampling):
     """
     @param data: a NxD NumPy data matrix
     @param alpha: IBP hyper parameter
@@ -23,7 +23,7 @@ class SemiCollapsedGibbsSampling(GibbsSampling):
     """
     def _initialize(self, data, alpha=1.0, sigma_a=1.0, sigma_x=1.0, initial_Z=None, A_prior=None, initial_A=None):
         # Data matrix
-        super(SemiCollapsedGibbsSampling, self)._initialize(self.center_data(data), alpha, sigma_a, sigma_x, A_prior, initial_Z);
+        super(SemicollapsedGibbsSampling, self)._initialize(self.center_data(data), alpha, sigma_a, sigma_x, A_prior, initial_Z);
 
         if initial_A!=None:
             # this will replace the A matrix generated in the super class. 
@@ -340,7 +340,7 @@ if __name__ == '__main__':
     features = features.astype(numpy.int);
     
     # initialize the model
-    ibp = SemiCollapsedGibbsSampling(alpha_hyper_parameter, sigma_x_hyper_parameter, sigma_a_hyper_parameter, True);
+    ibp = SemicollapsedGibbsSampling(alpha_hyper_parameter, sigma_x_hyper_parameter, sigma_a_hyper_parameter, True);
 
     ibp._initialize(data[1:100, :], 0.5, 0.2, 0.5, None, None, None);
 
