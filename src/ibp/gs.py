@@ -61,6 +61,7 @@ class GibbsSampling(object):
         
         # Data matrix
         #self._X = self.center_data(data);
+        self._X = data;
         (self._N, self._D) = self._X.shape;
         
         if(initial_Z == None):

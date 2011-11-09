@@ -7,7 +7,7 @@ Implements collapsed Gibbs sampling for the linear-Gaussian infinite latent feat
 
 import numpy, scipy;
 import math, random;
-from gs import GibbsSampling;
+from ibp.gs import GibbsSampling;
 import util.log_math;
 
 # We will be taking log(0) = -Inf, so turn off this warning
@@ -271,7 +271,7 @@ class CollapsedGibbsSampling(GibbsSampling):
 run IBP on the synthetic 'cambridge bars' dataset, used in the original paper.
 """
 if __name__ == '__main__':
-    import scipy.mat_vec_io;
+    import scipy.io;
     #import util.scaled_image;
     
     # load the data from the matrix
