@@ -2,8 +2,6 @@ import abc;
 import numpy, scipy;
 import math;
 
-import util.mat_vec_io
-
 """
 
 """
@@ -243,12 +241,15 @@ class GibbsSampling(object):
     @param index: the export index, e.g., usually the iteration count, append to the title
     """
     def export_snapshot(self, directory, index):
+        import os
+        if not os.path.exists(directory):
+            os.mkdir(directory);
         assert(directory.endswith("/"));
-        util.mat_vec_io.export_matrix(directory + self._a_title + str(index), self._A);
-        util.mat_vec_io.export_matrix(directory + self._x_title + str(index), self._X);
-        util.mat_vec_io.export_matrix(directory + self._z_title + str(index), self._Z);
+        numpy.savetxt(directory + self._a_title + str(index), self._A);
+        numpy.savetxt(directory + self._x_title + str(index), self._X);
+        numpy.savetxt(directory + self._z_title + str(index), self._Z);
         vector = numpy.array([self._alpha, self._sigma_a, self._sigma_x]);
-        util.mat_vec_io.export_vector(directory + self._hyper_parameter_title + str(index), vector);
+        numpy.savetxt(directory + self._hyper_parameter_title + str(index), vector);
         print "successfully export the snapshot to " + directory + " for iteration " + str(index) + "..."
 
     """
@@ -257,14 +258,14 @@ class GibbsSampling(object):
     """
     def import_snapshot(self, directory, index):
         assert(directory.endswith("/"));
-        self._A = util.mat_vec_io.import_matrix(directory + self._a_title + str(index));
-        self._X = util.mat_vec_io.import_matrix(directory + self._x_title + str(index));
-        self._Z = util.mat_vec_io.import_matrix(directory + self._z_title + str(index));
+        self._A = numpy.loadtxt(directory + self._a_title + str(index));
+        self._X = numpy.loadtxt(directory + self._x_title + str(index));
+        self._Z = numpy.loadtxt(directory + self._z_title + str(index));
         (self._N, self._K) = self._Z.shape;
         (self._N, self._D) = self._X.shape;
         assert(self._Z.shape[0] == self._X.shape[0]);
         assert(self._A.shape==(self._K, self._D));
-        (self._alpha, self._sigma_a, self._sigma_x) = util.mat_vec_io.import_vector(directory + self._hyper_parameter_title + str(index));
+        (self._alpha, self._sigma_a, self._sigma_x) = numpy.loadtxt(directory + self._hyper_parameter_title + str(index));
         print "successfully import the snapshot from " + directory + " for iteration " + str(index) + "..."
     
     """
