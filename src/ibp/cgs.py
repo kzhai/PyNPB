@@ -29,7 +29,7 @@ class CollapsedGibbsSampling(GibbsSampling):
         if A_prior == None:
             self._A_prior = numpy.zeros((1, self._D));
         else:
-            self._A_prior = A_prior; 
+            self._A_prior = A_prior;
         
         assert(self._A_prior.shape == (1, self._D));
         
