@@ -1,7 +1,6 @@
 """
 Author: Ke Zhai (zhaike@cs.umd.edu)
 
-This code was modified from the code originally written by David Andrzejewski (david.andrzej@gmail.com).
 Implements collapsed Gibbs sampling for the linear-Gaussian infinite latent feature model (IBP).
 """
 
@@ -66,12 +65,12 @@ class CollapsedGibbsSampling(GibbsSampling):
                 if self._metropolis_hastings_k_new:
                     # sample K_new using metropolis hasting
                     self.metropolis_hastings_K_new(object_index, singleton_features, M_i, log_det_M_i);
-
-            if self._alpha_hyper_parameter != None:
-                self._alpha = self.sample_alpha();
-                
+            
             self._A = self.map_estimate_A();
             
+            if self._alpha_hyper_parameter != None:
+                self._alpha = self.sample_alpha();
+
             if self._sigma_x_hyper_parameter!=None:
                 self._sigma_x = self.sample_sigma_x(self._sigma_x_hyper_parameter);
             

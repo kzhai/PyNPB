@@ -1,7 +1,6 @@
 """
 Author: Ke Zhai (zhaike@cs.umd.edu)
 
-This code was modified from the code originally written by David Andrzejewski (david.andrzej@gmail.com).
 Implements uncollapsed Gibbs sampling for the linear-Gaussian infinite latent feature model (IBP).
 """
 
@@ -49,9 +48,6 @@ class SemicollapsedGibbsSampling(GibbsSampling):
                 if self._metropolis_hastings_k_new:
                     # sample K_new using metropolis hasting
                     self.metropolis_hastings_K_new(object_index, singleton_features);
-                
-            # regularize matrices
-            #self.regularize_matrices();    
 
             self.sample_A();
             

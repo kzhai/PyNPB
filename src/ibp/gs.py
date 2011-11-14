@@ -154,7 +154,7 @@ class GibbsSampling(object):
     """
     sample alpha from conjugate posterior
     """
-    def sample_alpha(self):        
+    def sample_alpha(self):
         assert(self._alpha_hyper_parameter!=None);
         assert(type(self._alpha_hyper_parameter)==tuple);
     
