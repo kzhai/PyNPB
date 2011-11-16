@@ -5,7 +5,7 @@ import math;
 """
 
 """
-class GibbsSampling(object):
+class CollapsedGibbsSampling(object):
     __metaclass__ = abc.ABCMeta;
     
     """
@@ -42,7 +42,7 @@ class GibbsSampling(object):
         self._x_title = "X-matrix-";
         self._z_title = "Z-matrix-";
         self._a_title = "A-matrix-";
-        self._hyper_parameter_title = "Hyper-parameter-vector-";
+        self._hyper_parameter_vector_title = "Hyper-parameter-vector-";
         
     """
     @param data: a NxD NumPy data matrix
@@ -249,7 +249,7 @@ class GibbsSampling(object):
         numpy.savetxt(directory + self._x_title + str(index), self._X);
         numpy.savetxt(directory + self._z_title + str(index), self._Z);
         vector = numpy.array([self._alpha, self._sigma_a, self._sigma_x]);
-        numpy.savetxt(directory + self._hyper_parameter_title + str(index), vector);
+        numpy.savetxt(directory + self._hyper_parameter_vector_title + str(index), vector);
         print "successfully export the snapshot to " + directory + " for iteration " + str(index) + "..."
 
     """
@@ -265,7 +265,7 @@ class GibbsSampling(object):
         (self._N, self._D) = self._X.shape;
         assert(self._Z.shape[0] == self._X.shape[0]);
         assert(self._A.shape==(self._K, self._D));
-        (self._alpha, self._sigma_a, self._sigma_x) = numpy.loadtxt(directory + self._hyper_parameter_title + str(index));
+        (self._alpha, self._sigma_a, self._sigma_x) = numpy.loadtxt(directory + self._hyper_parameter_vector_title + str(index));
         print "successfully import the snapshot from " + directory + " for iteration " + str(index) + "..."
     
     """
