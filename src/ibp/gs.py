@@ -14,6 +14,7 @@ class CollapsedGibbsSampling(object):
     @param sigma_a_hyper_parameter: hyper-parameter for sigma_a sampling, a tuple defining the parameter for an inverse gamma distribution
     @param sigma_x_hyper_parameter: hyper-parameter for sigma_x sampling, a tuple defining the parameter for an inverse gamma distribution
     @param metropolis_hasting_k_new: a boolean variable, set to true if we use metropolis hasting to estimate K_new, otherwise use truncated gibbs sampling
+    @param snapshot_interval: the interval for exporting a snapshot of the model
     """
     def __init__(self, #real_valued_latent_feature=True,
                  alpha_hyper_parameter=None, 

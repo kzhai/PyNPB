@@ -15,6 +15,8 @@ class CollapsedGibbsSampling(object):
     import scipy.stats;
     
     """
+    @param truncation_level: the maximum number of clusters, used for speeding up the computation
+    @param snapshot_interval: the interval for exporting a snapshot of the model
     """
     def __init__(self,
                  truncation_level=100,
@@ -29,7 +31,12 @@ class CollapsedGibbsSampling(object):
         self._hyper_parameter_matrix_title = "Hyper-parameter-matrix-";
 
     """
-    
+    @param data: a N-by-D numpy array object, defines N points of D dimension
+    @param alpha: the concentration parameter of the dirichlet process
+    @param kappa_0: initial kappa_0
+    @param nu_0: initial nu_0
+    @param mu_0: initial cluster center
+    @param lambda_0: initial lambda_0
     """
     def _initialize(self, data, alpha=1., kappa_0=1., nu_0=1., mu_0=None, lambda_0=None):
         self._X = data;
@@ -102,7 +109,7 @@ class CollapsedGibbsSampling(object):
     """
     sample the data to train the parameters
     @param iteration: the number of gibbs sampling iteration
-    @param directory: the directory to save output  
+    @param directory: the directory to save output, default to "../../output/tmp-output"  
     """
     def sample(self, iteration, directory="../../output/tmp-output/"):
         #sample the total data
@@ -227,6 +234,8 @@ class CollapsedGibbsSampling(object):
             if (iter+1) % self._snapshot_interval == 0:
                 self.export_snapshot(directory, iter+1);
                 
+    """
+    """
     def export_snapshot(self, directory, index):
         import os
         if not os.path.exists(directory):
