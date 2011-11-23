@@ -34,6 +34,9 @@ class UncollapsedGibbsSampling(CollapsedGibbsSampling):
     sample the corpus to train the parameters
     """
     def sample(self, iteration, directory="../../output/tmp-output/"):
+        import shutil
+        shutil.rmtree(directory);
+        
         assert(self._Z.shape==(self._N, self._K));
         assert(self._A.shape==(self._K, self._D));
         assert(self._X.shape==(self._N, self._D));
