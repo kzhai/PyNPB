@@ -6,13 +6,13 @@ Implements collapsed Gibbs sampling for the linear-Gaussian infinite latent feat
 
 import numpy, scipy;
 import math, random;
-from ibp.gs import CollapsedGibbsSampling;
+from ibp.gs import GibbsSampling;
 import util.log_math;
 
 # We will be taking log(0) = -Inf, so turn off this warning
 numpy.seterr(divide='ignore')
 
-class CollapsedGibbsSampling(CollapsedGibbsSampling):
+class GibbsSampling(GibbsSampling):
     import scipy.stats;
 
     """
@@ -23,7 +23,7 @@ class CollapsedGibbsSampling(CollapsedGibbsSampling):
     @param initializ_Z: seeded Z matrix
     """
     def _initialize(self, data, alpha=1.0, sigma_a=1.0, sigma_x=1.0,  A_prior=None, initial_Z=None):
-        super(CollapsedGibbsSampling, self)._initialize(self.center_data(data), alpha, sigma_a, sigma_x, initial_Z);
+        super(GibbsSampling, self)._initialize(self.center_data(data), alpha, sigma_a, sigma_x, initial_Z);
 
         if A_prior == None:
             self._A_prior = numpy.zeros((1, self._D));
@@ -42,8 +42,9 @@ class CollapsedGibbsSampling(CollapsedGibbsSampling):
     sample the corpus to train the parameters
     """
     def sample(self, iteration, directory="../../output/tmp-output/"):
-        import shutil
-        shutil.rmtree(directory);
+        import os, shutil
+        if os.path.exists(directory):
+            shutil.rmtree(directory);
         
         assert(self._Z.shape == (self._N, self._K));
         assert(self._X.shape == (self._N, self._D));
@@ -292,7 +293,7 @@ if __name__ == '__main__':
     features = features.astype(numpy.int);
     
     # initialize the model
-    ibp = CollapsedGibbsSampling(alpha_hyper_parameter, sigma_x_hyper_parameter, sigma_a_hyper_parameter, True);
+    ibp = GibbsSampling(alpha_hyper_parameter, sigma_x_hyper_parameter, sigma_a_hyper_parameter, True);
 
     ibp._initialize(data[1:100, :], 0.5, 0.2, 0.5);
     #ibp._initialize(data[0:1000, :], 1.0, 1.0, 1.0, None, features[0:1000, :]);

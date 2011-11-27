@@ -7,13 +7,13 @@ Implements uncollapsed Gibbs sampling for the linear-Gaussian infinite latent fe
 
 import numpy, scipy;
 import math, random;
-from ibp.gs import CollapsedGibbsSampling;
+from ibp.gs import GibbsSampling;
 import scipy.stats;
 
 # We will be taking log(0) = -Inf, so turn off this warning
 numpy.seterr(divide='ignore')
 
-class UncollapsedGibbsSampling(CollapsedGibbsSampling):
+class UncollapsedGibbsSampling(GibbsSampling):
     """
     @param data: a NxD NumPy data matrix
     @param alpha: IBP hyper parameter
@@ -34,9 +34,10 @@ class UncollapsedGibbsSampling(CollapsedGibbsSampling):
     sample the corpus to train the parameters
     """
     def sample(self, iteration, directory="../../output/tmp-output/"):
-        import shutil
-        shutil.rmtree(directory);
-        
+        import os, shutil
+        if os.path.exists(directory):
+            shutil.rmtree(directory);
+            
         assert(self._Z.shape==(self._N, self._K));
         assert(self._A.shape==(self._K, self._D));
         assert(self._X.shape==(self._N, self._D));
