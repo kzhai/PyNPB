@@ -5,7 +5,7 @@ import math;
 """
 
 """
-class GibbsSampling(object):
+class CollapsedGibbsSampling(object):
     __metaclass__ = abc.ABCMeta;
     
     """

@@ -6,7 +6,6 @@ Implements collapsed Gibbs sampling for the infinite Gaussian mixture model (IGM
 """
 
 import numpy, scipy;
-from util.wishart import wishart;
 
 # We will be taking log(0) = -Inf, so turn off this warning
 numpy.seterr(divide='ignore')
