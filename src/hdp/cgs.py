@@ -5,6 +5,7 @@ Implements collapsed Gibbs sampling for the hierarchical Dirichlet process (HDP)
 """
 
 import numpy, scipy;
+import scipy.special;
 
 # We will be taking log(0) = -Inf, so turn off this warning
 numpy.seterr(divide='ignore')
@@ -77,6 +78,7 @@ class CollapsedGibbsSampling(object):
         self._k_dt = {};
         # initialize the word count vectors indexed by document id and table id, i.e., n_{j t \cdot}
         self._n_dt = {};
+        
         # we assume all words in a document belong to one table which was assigned to topic 0 
         for d in xrange(self._D):
             # initialize the table information vector indexed by document and records down which table a word belongs to 
@@ -97,6 +99,9 @@ class CollapsedGibbsSampling(object):
             self._n_dk[0, d] = len(self._corpus[d])
             
             self._m_k[0] += len(self._k_dt[d]);
+            
+        print self._n_kv, self._n_dk, self._m_k
+        print self._t_dv, self._k_dt, self._n_dt
 
     """
     sample the data to train the parameters
@@ -104,16 +109,14 @@ class CollapsedGibbsSampling(object):
     @param directory: the directory to save output, default to "../../output/tmp-output"  
     """
     def sample(self, iteration, directory="../../output/tmp-output/"):
+        from nltk.probability import FreqDist;
+        
         #sample the total data
         for iter in xrange(iteration):
-            #document_order = numpy.random.permutation(self._D);
-            #for (document_counter, document_index) in enumerate(document_order):
+            print "random sequence of D is", numpy.random.permutation(xrange(self._D))
             for document_index in numpy.random.permutation(xrange(self._D)):
-                #word_info_d = self._t_dv[document_index];
-                #table_info_d = self._k_dt[document_index];
-                #word_count_table_d = self._n_dt[document_index];
-                #word_count_topic_d = self._word_count_topic[document_index];
-
+                print "random sequence of document", document_index, "is", numpy.random.permutation(xrange(len(self._corpus[document_index])))
+                # sample word assignment
                 for word_index in numpy.random.permutation(xrange(len(self._corpus[document_index]))):
                     self.update_params(document_index, word_index, -1);
                     
@@ -175,7 +178,46 @@ class CollapsedGibbsSampling(object):
                         self.update_params(document_index, word_index, +1);
                     else:
                         self.update_params(document_index, word_index, +1);
+                        
+                # sample table assignment
+                for table_index in numpy.random.permutation(xrange(len(self._k_dt[document_index]))):
+                    # if this table is not empty, sample the topic assignment of this table
+                    if self._n_dt[document_index][table_index]>0:
+                        
+                        q = numpy.zeros(self._K+1);
 
+                        # find the index of the words sitting on the current table
+                        selected_word_index = numpy.nonzero(self._t_dv[document_index]==table_index)[0];
+                        # find the frequency distribution of the words sitting on the current table
+                        selected_word_freq_dist = FreqDist(list(self._corpus[selected_word_index]));
+                        
+                        q[self._K] = scipy.special.gammaln(self._V * self._eta) - scipy.special.gammaln(self._n_dt[document_index][table_index] + self._V * self._eta);
+                        for word_id in selected_word_freq_dist.keys():
+                            q[self._K] += scipy.special.gammaln(selected_word_freq_dist[word_id] + self._eta) - scipy.special.gammaln(self._eta);
+                        q[self._K] += numpy.log(self._gamma);
+                        
+                        
+                        
+                        
+    
+"""
+
+        # initialize the word count matrix indexed by topic id and word id, i.e., n_{\cdot \cdot k}^v
+        self._n_kv = numpy.zeros((self._K, self._V));
+        # initialize the word count matrix indexed by topic id and document id, i.e., n_{j \cdot k}
+        self._n_dk = numpy.zeros((self._K, self._D));
+        # initialize the table count matrix indexed by topic id, i.e., m_{\cdot k}
+        self._m_k = numpy.zeros(self._K);
+
+        # initialize the table information vectors indexed by document id and word id, i.e., t{j i}
+        self._t_dv = {};
+        # initialize the topic information vectors indexed by document id and table id, i.e., k_{j t}
+        self._k_dt = {};
+        # initialize the word count vectors indexed by document id and table id, i.e., n_{j t \cdot}
+        self._n_dt = {};
+"""    
+    
+    
     """
     """
     def update_params(self, document_index, word_index, update):
@@ -257,6 +299,6 @@ if __name__ == '__main__':
     gs = CollapsedGibbsSampling();
     gs._initialize(data);
     
-    gs.sample(100);
+    gs.sample(10);
     
     print gs._K
