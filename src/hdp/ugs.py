@@ -19,7 +19,7 @@ class UncollapsedGibbsSampling(object):
     """
     def __init__(self,
                  #truncation_level=100,
-                 snapshot_interval = 10):
+                 snapshot_interval = 100):
         #self._truncation_level = truncation_level;
         self._snapshot_interval = snapshot_interval;
 
@@ -87,7 +87,6 @@ class UncollapsedGibbsSampling(object):
             # word_count_table records down the number of words sit on every table
             self._n_dt[d] = numpy.zeros(1, dtype=numpy.int) + len(self._corpus[d]);
             assert(len(self._n_dt[d])==len(numpy.unique(self._t_dv[d])));
-            #assert(len(self._n_dt[d])==self._T);
             assert(numpy.sum(self._n_dt[d])==len(self._corpus[d]));
             
             for v in self._corpus[d]:
@@ -260,7 +259,7 @@ class UncollapsedGibbsSampling(object):
             
             if iter>0 and iter%10==0:
                 print "sampling in progress %2d%%" % (100 * iter / iteration);
-                print "total number of topics %i" % (self._K);
+                print "total number of topics %i, log-likelihood is %f" % (self._K, self.log_likelihood());
                 
             if (iter+1) % self._snapshot_interval == 0:
                 self.export_snapshot(directory, iter+1);
@@ -335,6 +334,60 @@ class UncollapsedGibbsSampling(object):
                 self._k_dt[d][numpy.nonzero(self._k_dt[d]==used_topics[k])[0]] = k;
 
     """
+    compute the log likelihood of the model
+    """                
+    def log_likelihood(self):
+        log_likelihood = 0.;
+        # compute the document level log likelihood
+        log_likelihood += self.table_log_likelihood();
+        # compute the table level log likelihood
+        log_likelihood += self.topic_log_likelihood();
+        # compute the word level log likelihood
+        log_likelihood += self.word_log_likelihood();
+        
+        #todo: add in the likelihood for hyper-parameter
+        
+        return log_likelihood
+        
+    """
+    compute the table level log likelihood
+    """
+    def table_log_likelihood(self):
+        log_likelihood = 0.;
+        for document_index in xrange(self._D):
+            log_likelihood += len(self._k_dt[document_index]) * numpy.log(self._alpha) - log_factorial(len(self._t_dv[document_index]), self._alpha);
+            for table_index in xrange(len(self._k_dt[document_index])):
+                log_likelihood += scipy.special.gammaln(self._n_dt[document_index][table_index]);
+            
+        return log_likelihood
+    
+    """
+    compute the topic level log likelihood
+    """
+    def topic_log_likelihood(self):
+        log_likelihood = self._K * numpy.log(self._gamma) - log_factorial(numpy.sum(self._m_k), self._gamma);
+        for topic_index in xrange(self._K):
+            log_likelihood += scipy.special.gammaln(self._m_k[topic_index]);
+        
+        return log_likelihood
+    
+    """
+    compute the word level log likelihood
+    """
+    def word_log_likelihood(self):
+        n_k = numpy.sum(self._n_kd, axis=1);
+        assert(len(n_k)==self._K);
+        
+        log_likelihood = self._K * scipy.special.gammaln(self._V * self._eta);
+        for topic_index in xrange(self._K):
+            log_likelihood -= scipy.special.gammaln(self._V * self._eta + n_k[topic_index]);
+            for word_index in xrange(self._V):
+                if self._n_kv[topic_index, word_index] > 0:
+                    log_likelihood += scipy.special.gammaln(self._n_kv[topic_index, word_index] + self._eta) + scipy.special.gammaln(self._eta);
+                    
+        return log_likelihood
+        
+    """
     """
     def export_snapshot(self, directory, index):
         import os
@@ -395,6 +448,17 @@ def log_normalize(dist):
     return dist
 
 """
+@param n: an integer data type
+@param a: 
+@attention: n must be an integer
+this function is to compute the log(n!), since n!=Gamma(n+1), which means log(n!)=lngamma(n+1)
+"""
+def log_factorial(n, a):
+    if n==0:
+        return 0.;
+    return scipy.special.gammaln(n+a) - scipy.special.gammaln(a);
+
+"""
 run IGMM on the synthetic clustering dataset.
 """
 if __name__ == '__main__':
@@ -402,7 +466,7 @@ if __name__ == '__main__':
     #temp_directory = "../../data/de-news/en/corpus-3/";
     data = import_monolingual_data(temp_directory + "doc.dat");
 
-    gs = UncollapsedGibbsSampling();
+    gs = UncollapsedGibbsSampling(100);
     gs._initialize(data);
     
     gs.sample(100);
