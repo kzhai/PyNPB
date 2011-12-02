@@ -108,20 +108,17 @@ class CollapsedGibbsSampling(object):
     """
     def sample(self, iteration, directory="../../output/tmp-output/"):
         from nltk.probability import FreqDist;
-        import operator;
         
         #sample the total data
         for iter in xrange(iteration):
-            #print "random sequence of D is", numpy.random.permutation(xrange(self._D))
-            for document_index in xrange(self._D): #numpy.random.permutation(xrange(self._D)):
-                #print "random sequence of document", document_index, "is", numpy.random.permutation(xrange(len(self._corpus[document_index])))
+            for document_index in numpy.random.permutation(xrange(self._D)):
                 # sample word assignment, see which table it should belong to
-                for word_index in xrange(len(self._corpus[document_index])): #numpy.random.permutation(xrange(len(self._corpus[document_index]))):
+                for word_index in numpy.random.permutation(xrange(len(self._corpus[document_index]))):
                     self.update_params(document_index, word_index, -1);
                     
+                    # get the word at the index position
                     word_id = self._corpus[document_index][word_index];
 
-                    # compute p()
                     n_k = numpy.sum(self._n_kv, axis=1);
                     assert(len(n_k)==self._K);
                     f = numpy.zeros(self._K);
@@ -131,38 +128,46 @@ class CollapsedGibbsSampling(object):
                         f_new += self._m_k[k] * f[k];
                     f_new /= (numpy.sum(self._m_k) + self._gamma);
                     
+                    # compute the probability of this word sitting at every table 
                     table_probablity = numpy.zeros(len(self._k_dt[document_index])+1);
                     for t in xrange(len(self._k_dt[document_index])):
-                        #print len(self._n_dt), len(self._n_dt[document_index]), t, self._n_dt[document_index][t]
                         if self._n_dt[document_index][t] > 0:
+                            # if there are some words sitting on this table, the probability will be proportional to the population
                             assigned_topic = self._k_dt[document_index][t];
                             assert(assigned_topic>=0 or assigned_topic<self._K);
                             table_probablity[t] = f[assigned_topic] * self._n_dt[document_index][t];
                         else:
+                            # if there are no words sitting on this table
+                            # note that it is an old table, hence the prior probability is 0, not self._alpha
                             table_probablity[t] = 0.;
-                    # compute the probability of assign a word to new table
+                    # compute the probability of current word sitting on a new table, the prior probability is self._alpha
                     table_probablity[len(self._k_dt[document_index])] = self._alpha * f_new;
+
+                    # sample a new table this word should sit in
                     table_probablity /= numpy.sum(table_probablity);
                     cdf = numpy.cumsum(table_probablity);
                     new_table = numpy.uint8(numpy.nonzero(cdf>=numpy.random.random())[0][0]);
 
                     # assign current word to new table
-                    self._t_dv[document_index][word_index] = new_table
-                    
-                    topic_probability = numpy.zeros(self._K+1);
+                    self._t_dv[document_index][word_index] = new_table;
+
                     # if current word sits on a new table, we need to get the topic of that table
                     if new_table==len(self._k_dt[document_index]):
                         # expand the vectors to fit in new table
                         self._n_dt[document_index] = numpy.hstack((self._n_dt[document_index], numpy.zeros(1)));
                         self._k_dt[document_index] = numpy.hstack((self._k_dt[document_index], numpy.zeros(1)));
+                        
                         assert(len(self._n_dt)==self._D and numpy.all(self._n_dt[document_index]>=0));
                         assert(len(self._k_dt)==self._D and numpy.all(self._k_dt[document_index]>=0));
                         assert(len(self._n_dt[document_index])==len(self._k_dt[document_index]));
 
+                        # compute the probability of this table having every topic
+                        topic_probability = numpy.zeros(self._K+1);
                         for k in xrange(self._K):
                             topic_probability[k] = self._m_k[k] * f[k];
                         topic_probability[self._K] = self._gamma/self._V;
-                        
+
+                        # sample a new topic this table should be assigned
                         topic_probability /= numpy.sum(topic_probability);
                         cdf = numpy.cumsum(topic_probability);
                         k_new = numpy.uint8(numpy.nonzero(cdf>=numpy.random.random())[0][0]);
@@ -188,13 +193,14 @@ class CollapsedGibbsSampling(object):
                     if self._n_dt[document_index][table_index]>0:
                         old_topic = self._k_dt[document_index][table_index];
                         
-                        topic_probablity = numpy.zeros(self._K+1);
 
                         # find the index of the words sitting on the current table
                         selected_word_index = numpy.nonzero(self._t_dv[document_index]==table_index)[0];
                         # find the frequency distribution of the words sitting on the current table
                         selected_word_freq_dist = FreqDist([self._corpus[document_index][term] for term in list(selected_word_index)]);
-                        
+
+                        # compute the probability of assigning current table every topic
+                        topic_probablity = numpy.zeros(self._K+1);
                         topic_probablity[self._K] = scipy.special.gammaln(self._V * self._eta) - scipy.special.gammaln(self._n_dt[document_index][table_index] + self._V * self._eta);
                         for word_id in selected_word_freq_dist.keys():
                             topic_probablity[self._K] += scipy.special.gammaln(selected_word_freq_dist[word_id] + self._eta) - scipy.special.gammaln(self._eta);
@@ -216,7 +222,6 @@ class CollapsedGibbsSampling(object):
                                         topic_probablity[topic_index] += scipy.special.gammaln(self._n_kv[topic_index, word_id] + self._eta) - scipy.special.gammaln(self._n_kv[topic_index, word_id] + self._eta - selected_word_freq_dist[word_id]);
                                     # compute the prior if we move this table from this topic
                                     topic_probablity[topic_index] += numpy.log(self._m_k[topic_index]-1);
-                                    
                             else:
                                 topic_probablity[topic_index] = scipy.special.gammaln(self._V * self._eta + n_k[topic_index]) - scipy.special.gammaln(self._V * self._eta + n_k[topic_index] + self._n_dt[document_index][table_index]);
                                 for word_id in selected_word_freq_dist.keys():
@@ -253,9 +258,14 @@ class CollapsedGibbsSampling(object):
                                 self._n_kv[old_topic, word_id] -= selected_word_freq_dist[word_id];
                                 assert(self._n_kv[old_topic, word_id]>=0)
                                 self._n_kv[new_topic, word_id] += selected_word_freq_dist[word_id];
-                                
-                                
+
+            # compact all the parameters, including removing unused topics and unused tables
             self.compact_params();
+            
+            if iter>0 and iter%10==0:
+                print "sampling in progress %2d%%" % (100 * iter / iteration);        
+                print "total number of topics %i" % (self._K);
+                
     """
     """
     def update_params(self, document_index, word_index, update):
@@ -289,6 +299,8 @@ class CollapsedGibbsSampling(object):
         assert(numpy.all(self._m_k>=0));
         assert(numpy.all(self._k_dt[document_index]>=0));
 
+    """
+    """
     def compact_params(self):
         # find unused and used topics
         unused_topics = numpy.nonzero(self._m_k==0)[0];
@@ -370,13 +382,14 @@ def import_monolingual_data(input_file):
 run IGMM on the synthetic clustering dataset.
 """
 if __name__ == '__main__':
-    temp_directory = "../../data/test/";
+    #temp_directory = "../../data/test/";
+    temp_directory = "../../data/de-news/en/corpus-2/";
     data = import_monolingual_data(temp_directory + "doc.dat");
 
     gs = CollapsedGibbsSampling();
     gs._initialize(data);
     
-    gs.sample(10);
+    gs.sample(100);
     
     print gs._K
     print gs._n_kd
