@@ -52,7 +52,6 @@ class CollapsedGibbsSampling(object):
         self._corpus = data
         # initialize the size of the collection, i.e., total number of documents.
         self._D = len(self._corpus)
-        print self._D, self._corpus
 
         # initialize the vocabulary, i.e. a list of distinct tokens.
         self._vocab = []
@@ -63,12 +62,11 @@ class CollapsedGibbsSampling(object):
         
         # initialize the size of the vocabulary, i.e. total number of distinct tokens.
         self._V = len(self._vocab);
-        print self._V, self._vocab
         
         # initialize the word count matrix indexed by topic id and word id, i.e., n_{\cdot \cdot k}^v
         self._n_kv = numpy.zeros((self._K, self._V));
         # initialize the word count matrix indexed by topic id and document id, i.e., n_{j \cdot k}
-        self._n_dk = numpy.zeros((self._K, self._D));
+        self._n_kd = numpy.zeros((self._K, self._D));
         # initialize the table count matrix indexed by topic id, i.e., m_{\cdot k}
         self._m_k = numpy.zeros(self._K);
 
@@ -89,19 +87,19 @@ class CollapsedGibbsSampling(object):
             assert(len(self._k_dt[d])==len(numpy.unique(self._t_dv[d])));
             
             # word_count_table records down the number of words sit on every table
-            self._n_dt[d] = numpy.zeros(1) + len(self._corpus[d]);
+            self._n_dt[d] = numpy.zeros(1, dtype=numpy.int) + len(self._corpus[d]);
             assert(len(self._n_dt[d])==len(numpy.unique(self._t_dv[d])));
             #assert(len(self._n_dt[d])==self._T);
             assert(numpy.sum(self._n_dt[d])==len(self._corpus[d]));
             
             for v in self._corpus[d]:
                 self._n_kv[0, v] += 1;
-            self._n_dk[0, d] = len(self._corpus[d])
+            self._n_kd[0, d] = len(self._corpus[d])
             
             self._m_k[0] += len(self._k_dt[d]);
             
-        print self._n_kv, self._n_dk, self._m_k
-        print self._t_dv, self._k_dt, self._n_dt
+        #print self._n_kv, self._n_kd, self._m_k
+        #print self._t_dv, self._k_dt, self._n_dt
 
     """
     sample the data to train the parameters
@@ -110,56 +108,63 @@ class CollapsedGibbsSampling(object):
     """
     def sample(self, iteration, directory="../../output/tmp-output/"):
         from nltk.probability import FreqDist;
+        import operator;
         
         #sample the total data
         for iter in xrange(iteration):
-            print "random sequence of D is", numpy.random.permutation(xrange(self._D))
-            for document_index in numpy.random.permutation(xrange(self._D)):
-                print "random sequence of document", document_index, "is", numpy.random.permutation(xrange(len(self._corpus[document_index])))
-                # sample word assignment
-                for word_index in numpy.random.permutation(xrange(len(self._corpus[document_index]))):
+            #print "random sequence of D is", numpy.random.permutation(xrange(self._D))
+            for document_index in xrange(self._D): #numpy.random.permutation(xrange(self._D)):
+                #print "random sequence of document", document_index, "is", numpy.random.permutation(xrange(len(self._corpus[document_index])))
+                # sample word assignment, see which table it should belong to
+                for word_index in xrange(len(self._corpus[document_index])): #numpy.random.permutation(xrange(len(self._corpus[document_index]))):
                     self.update_params(document_index, word_index, -1);
                     
                     word_id = self._corpus[document_index][word_index];
 
                     # compute p()
+                    n_k = numpy.sum(self._n_kv, axis=1);
+                    assert(len(n_k)==self._K);
                     f = numpy.zeros(self._K);
                     f_new = self._gamma / self._V;
                     for k in xrange(self._K):
-                        f[k] = (self._n_kv[k, word_id] + self._eta)/(numpy.sum(self._n_kv, axis=0)[k] + self._V * self._eta);
+                        f[k] = (self._n_kv[k, word_id] + self._eta)/(n_k[k] + self._V * self._eta);
                         f_new += self._m_k[k] * f[k];
                     f_new /= (numpy.sum(self._m_k) + self._gamma);
                     
-                    p_table = numpy.zeros(len(self._k_dt[document_index])+1);
+                    table_probablity = numpy.zeros(len(self._k_dt[document_index])+1);
                     for t in xrange(len(self._k_dt[document_index])):
+                        #print len(self._n_dt), len(self._n_dt[document_index]), t, self._n_dt[document_index][t]
                         if self._n_dt[document_index][t] > 0:
                             assigned_topic = self._k_dt[document_index][t];
                             assert(assigned_topic>=0 or assigned_topic<self._K);
-                            p_table[t] = f[assigned_topic] * self._n_dt[document_index][t];
+                            table_probablity[t] = f[assigned_topic] * self._n_dt[document_index][t];
                         else:
-                            p_table[t] = 0.;
+                            table_probablity[t] = 0.;
                     # compute the probability of assign a word to new table
-                    p_table[len(self._k_dt[document_index])] = self._alpha * f_new;
-
-                    cdf = numpy.cumsum(p_table);
-                    t_new = numpy.uint8(numpy.nonzero(cdf>=numpy.random.random())[0][0]);
-                    print "t_new is", t_new
+                    table_probablity[len(self._k_dt[document_index])] = self._alpha * f_new;
+                    table_probablity /= numpy.sum(table_probablity);
+                    cdf = numpy.cumsum(table_probablity);
+                    new_table = numpy.uint8(numpy.nonzero(cdf>=numpy.random.random())[0][0]);
 
                     # assign current word to new table
-                    self._t_dv[document_index][word_index] = t_new
+                    self._t_dv[document_index][word_index] = new_table
                     
-                    p_topic = numpy.zeros(self._K+1);
+                    topic_probability = numpy.zeros(self._K+1);
                     # if current word sits on a new table, we need to get the topic of that table
-                    if t_new==len(self._k_dt[document_index]):
+                    if new_table==len(self._k_dt[document_index]):
                         # expand the vectors to fit in new table
-                        self._n_dt = numpy.hstack((self._n_dt, numpy.zeros(1)));
-                        self._k_dt[document_index] = numpy.hstack((self._t_dv[document_index], numpy.zeros(1)));
+                        self._n_dt[document_index] = numpy.hstack((self._n_dt[document_index], numpy.zeros(1)));
+                        self._k_dt[document_index] = numpy.hstack((self._k_dt[document_index], numpy.zeros(1)));
+                        assert(len(self._n_dt)==self._D and numpy.all(self._n_dt[document_index]>=0));
+                        assert(len(self._k_dt)==self._D and numpy.all(self._k_dt[document_index]>=0));
+                        assert(len(self._n_dt[document_index])==len(self._k_dt[document_index]));
 
                         for k in xrange(self._K):
-                            p_topic[k] = self._m_k[k] * f[k];
-                        p_topic[self._K] = self._gamma/self._V;
+                            topic_probability[k] = self._m_k[k] * f[k];
+                        topic_probability[self._K] = self._gamma/self._V;
                         
-                        cdf = numpy.cumsum(p_topic);
+                        topic_probability /= numpy.sum(topic_probability);
+                        cdf = numpy.cumsum(topic_probability);
                         k_new = numpy.uint8(numpy.nonzero(cdf>=numpy.random.random())[0][0]);
                         
                         # if current table requires a new topic
@@ -168,10 +173,8 @@ class CollapsedGibbsSampling(object):
                             self._K += 1;
                             self._n_kv = numpy.vstack((self._n_kv, numpy.zeros((1, self._V))));
                             assert(self._n_kv.shape==(self._K, self._V));
-
-                            self._n_dk = numpy.vstack((self._n_dk, numpy.zeros((1, self._D))));
-                            assert(self._n_dk.shape==(self._K, self._D));
-                            
+                            self._n_kd = numpy.vstack((self._n_kd, numpy.zeros((1, self._D))));
+                            assert(self._n_kd.shape==(self._K, self._D));
                             self._m_k = numpy.hstack((self._m_k, numpy.zeros(1)));
                             assert(len(self._m_k)==self._K);
                     
@@ -179,71 +182,145 @@ class CollapsedGibbsSampling(object):
                     else:
                         self.update_params(document_index, word_index, +1);
                         
-                # sample table assignment
+                # sample table assignment, see which topic it should belong to
                 for table_index in numpy.random.permutation(xrange(len(self._k_dt[document_index]))):
                     # if this table is not empty, sample the topic assignment of this table
                     if self._n_dt[document_index][table_index]>0:
+                        old_topic = self._k_dt[document_index][table_index];
                         
-                        q = numpy.zeros(self._K+1);
+                        topic_probablity = numpy.zeros(self._K+1);
 
                         # find the index of the words sitting on the current table
                         selected_word_index = numpy.nonzero(self._t_dv[document_index]==table_index)[0];
                         # find the frequency distribution of the words sitting on the current table
-                        selected_word_freq_dist = FreqDist(list(self._corpus[selected_word_index]));
+                        selected_word_freq_dist = FreqDist([self._corpus[document_index][term] for term in list(selected_word_index)]);
                         
-                        q[self._K] = scipy.special.gammaln(self._V * self._eta) - scipy.special.gammaln(self._n_dt[document_index][table_index] + self._V * self._eta);
+                        topic_probablity[self._K] = scipy.special.gammaln(self._V * self._eta) - scipy.special.gammaln(self._n_dt[document_index][table_index] + self._V * self._eta);
                         for word_id in selected_word_freq_dist.keys():
-                            q[self._K] += scipy.special.gammaln(selected_word_freq_dist[word_id] + self._eta) - scipy.special.gammaln(self._eta);
-                        q[self._K] += numpy.log(self._gamma);
+                            topic_probablity[self._K] += scipy.special.gammaln(selected_word_freq_dist[word_id] + self._eta) - scipy.special.gammaln(self._eta);
+                        topic_probablity[self._K] += numpy.log(self._gamma);
                         
-                        
-                        
-                        
-    
-"""
+                        n_k = numpy.sum(self._n_kv, axis=1);
+                        assert(len(n_k)==(self._K))
+                        for topic_index in xrange(self._K):
+                            if topic_index==old_topic:
+                                if self._m_k[topic_index]<=1:
+                                    # if current table is the only table assigned to current topic,
+                                    # it means this topic is probably less useful or less generalizable to other documents,
+                                    # it makes more sense to collapse this topic and hence assign this table to other topic.
+                                    topic_probablity[topic_index] = -1e500;
+                                else:
+                                    # if there are other tables assigned to current topic
+                                    topic_probablity[topic_index] = scipy.special.gammaln(self._V * self._eta + n_k[topic_index] - self._n_dt[document_index][table_index]) - scipy.special.gammaln(self._V * self._eta + n_k[topic_index]);
+                                    for word_id in selected_word_freq_dist.keys():
+                                        topic_probablity[topic_index] += scipy.special.gammaln(self._n_kv[topic_index, word_id] + self._eta) - scipy.special.gammaln(self._n_kv[topic_index, word_id] + self._eta - selected_word_freq_dist[word_id]);
+                                    # compute the prior if we move this table from this topic
+                                    topic_probablity[topic_index] += numpy.log(self._m_k[topic_index]-1);
+                                    
+                            else:
+                                topic_probablity[topic_index] = scipy.special.gammaln(self._V * self._eta + n_k[topic_index]) - scipy.special.gammaln(self._V * self._eta + n_k[topic_index] + self._n_dt[document_index][table_index]);
+                                for word_id in selected_word_freq_dist.keys():
+                                    topic_probablity[topic_index] += scipy.special.gammaln(self._n_kv[topic_index, word_id] + self._eta + selected_word_freq_dist[word_id]) - scipy.special.gammaln(self._n_kv[topic_index, word_id] + self._eta);
+                                topic_probablity[topic_index] += numpy.log(self._m_k[topic_index]);
 
-        # initialize the word count matrix indexed by topic id and word id, i.e., n_{\cdot \cdot k}^v
-        self._n_kv = numpy.zeros((self._K, self._V));
-        # initialize the word count matrix indexed by topic id and document id, i.e., n_{j \cdot k}
-        self._n_dk = numpy.zeros((self._K, self._D));
-        # initialize the table count matrix indexed by topic id, i.e., m_{\cdot k}
-        self._m_k = numpy.zeros(self._K);
-
-        # initialize the table information vectors indexed by document id and word id, i.e., t{j i}
-        self._t_dv = {};
-        # initialize the topic information vectors indexed by document id and table id, i.e., k_{j t}
-        self._k_dt = {};
-        # initialize the word count vectors indexed by document id and table id, i.e., n_{j t \cdot}
-        self._n_dt = {};
-"""    
-    
-    
+                        # normalize the distribution and sample new topic assignment for this topic
+                        topic_probablity = numpy.exp(topic_probablity);
+                        topic_probablity = topic_probablity/numpy.sum(topic_probablity);
+                        cdf = numpy.cumsum(topic_probablity);
+                        new_topic = numpy.uint8(numpy.nonzero(cdf>=numpy.random.random())[0][0]);
+                        
+                        # if the table is assigned to a new topic
+                        if new_topic!=old_topic:
+                            # assign this table to new topic
+                            self._k_dt[document_index][table_index] = new_topic;
+                            
+                            # if this table starts a new topic, expand all matrix
+                            if new_topic==self._K:
+                                self._K += 1;
+                                self._n_kd = numpy.vstack((self._n_kd, numpy.zeros((1, self._D))));
+                                assert(self._n_kd.shape==(self._K, self._D));
+                                self._n_kv = numpy.vstack((self._n_kv, numpy.zeros((1, self._V))));
+                                assert(self._n_kv.shape==(self._K, self._V));
+                                self._m_k = numpy.hstack((self._m_k, numpy.zeros(1)));
+                                assert(len(self._m_k)==self._K);
+                                
+                            # adjust the statistics
+                            self._m_k[old_topic] -= 1;
+                            self._m_k[new_topic] += 1;
+                            self._n_kd[old_topic, document_index] -= self._n_dt[document_index][table_index];
+                            self._n_kd[new_topic, document_index] += self._n_dt[document_index][table_index];
+                            for word_id in selected_word_freq_dist.keys():
+                                self._n_kv[old_topic, word_id] -= selected_word_freq_dist[word_id];
+                                assert(self._n_kv[old_topic, word_id]>=0)
+                                self._n_kv[new_topic, word_id] += selected_word_freq_dist[word_id];
+                                
+                                
+            self.compact_params();
     """
     """
     def update_params(self, document_index, word_index, update):
         table_id = self._t_dv[document_index][word_index];
         topic_id = self._k_dt[document_index][table_id];
-        assert(topic_id>=0);
         word_id = self._corpus[document_index][word_index];
 
         self._n_dt[document_index][table_id] += update;
-        self._n_kv[topic_id, word_id] += update;
+        assert(numpy.all(self._n_dt[document_index]>=0));
         
-        self._n_dk[topic_id, document_index] += update;
+        self._n_kv[topic_id, word_id] += update;
+        assert(numpy.all(self._n_kv>=0));
+
+        self._n_kd[topic_id, document_index] += update;
+        assert(numpy.all(self._n_kd>=0));
         
         # if current table in current document becomes empty 
         if update==-1 and self._n_dt[document_index][table_id]==0:
             # adjust the table counts
             self._m_k[topic_id] -= 1;
             # clear the topic assign of that table
-            self._k_dt[document_index][table_id] = -1;
+            #self._k_dt[document_index][table_id] = -1;
             
         # if a new table is created in current document
         if update==1 and self._n_dt[document_index][table_id]==1:
             # adjust the table counts
             self._m_k[topic_id] += 1;
             # clear the topic assign of that table
-            self._k_dt[document_index][table_id] = +1;
+            #self._k_dt[document_index][table_id] = +1;
+            
+        assert(numpy.all(self._m_k>=0));
+        assert(numpy.all(self._k_dt[document_index]>=0));
+
+    def compact_params(self):
+        # find unused and used topics
+        unused_topics = numpy.nonzero(self._m_k==0)[0];
+        used_topics = numpy.nonzero(self._m_k!=0)[0];
+        
+        self._K -= len(unused_topics);
+        assert(self._K>=1 and self._K==len(used_topics));
+        
+        self._n_kd = numpy.delete(self._n_kd, unused_topics, axis=0);
+        assert(self._n_kd.shape==(self._K, self._D));
+        self._n_kv = numpy.delete(self._n_kv, unused_topics, axis=0);
+        assert(self._n_kv.shape==(self._K, self._V));
+        self._m_k = numpy.delete(self._m_k, unused_topics);
+        assert(len(self._m_k)==self._K);
+        
+        for d in xrange(self._D):
+            # find the unused and used tables
+            unused_tables = numpy.nonzero(self._n_dt[d]==0)[0];
+            used_tables = numpy.nonzero(self._n_dt[d]!=0)[0];
+
+            self._n_dt[d] = numpy.delete(self._n_dt[d], unused_tables);
+            self._k_dt[d] = numpy.delete(self._k_dt[d], unused_tables);
+            
+            # shift down all the table indices of all words in current document
+            # @attention: shift the used tables in ascending order only.
+            for t in xrange(len(self._n_dt[d])):
+                self._t_dv[d][numpy.nonzero(self._t_dv[d]==used_tables[t])[0]] = t;
+            
+            # shrink down all the topics indices of all tables in current document
+            # @attention: shrink the used topics in ascending order only.
+            for k in xrange(self._K):
+                self._k_dt[d][numpy.nonzero(self._k_dt[d]==used_topics[k])[0]] = k;
 
     """
     """
@@ -302,3 +379,4 @@ if __name__ == '__main__':
     gs.sample(10);
     
     print gs._K
+    print gs._n_kd
