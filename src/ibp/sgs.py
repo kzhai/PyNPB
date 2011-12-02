@@ -6,13 +6,13 @@ Implements uncollapsed Gibbs sampling for the linear-Gaussian infinite latent fe
 
 import numpy, scipy;
 import math, random;
-from ibp.gs import CollapsedGibbsSampling;
+from ibp.gs import GibbsSampling;
 import scipy.stats;
 
 # We will be taking log(0) = -Inf, so turn off this warning
 numpy.seterr(divide='ignore')
 
-class SemicollapsedGibbsSampling(CollapsedGibbsSampling):
+class SemicollapsedGibbsSampling(GibbsSampling):
     """
     @param data: a NxD NumPy data matrix
     @param alpha: IBP hyper parameter

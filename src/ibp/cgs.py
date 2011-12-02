@@ -6,12 +6,12 @@ Implements collapsed Gibbs sampling for the linear-Gaussian infinite latent feat
 
 import numpy, scipy;
 import math, random;
-from ibp.gs import CollapsedGibbsSampling;
+from ibp.gs import GibbsSampling;
 
 # We will be taking log(0) = -Inf, so turn off this warning
 numpy.seterr(divide='ignore')
 
-class CollapsedGibbsSampling(CollapsedGibbsSampling):
+class CollapsedGibbsSampling(GibbsSampling):
     import scipy.stats;
 
     """

@@ -1,7 +1,7 @@
 """
 Author: Ke Zhai (zhaike@cs.umd.edu)
 
-Implements collapsed Gibbs sampling for the hierarchical Dirichlet process (HDP).
+Implements uncollapsed Gibbs sampling for the hierarchical Dirichlet process (HDP).
 """
 
 import numpy, scipy;
@@ -10,7 +10,7 @@ import scipy.special;
 # We will be taking log(0) = -Inf, so turn off this warning
 numpy.seterr(divide='ignore')
 
-class CollapsedGibbsSampling(object):
+class UncollapsedGibbsSampling(object):
     import scipy.stats;
     
     """
@@ -18,16 +18,14 @@ class CollapsedGibbsSampling(object):
     @param snapshot_interval: the interval for exporting a snapshot of the model
     """
     def __init__(self,
-                 truncation_level=100,
-                 snapshot_interval = 100):
-        self._truncation_level = truncation_level;
+                 #truncation_level=100,
+                 snapshot_interval = 10):
+        #self._truncation_level = truncation_level;
         self._snapshot_interval = snapshot_interval;
 
-        self._label_title = "Label-";
-        self._mu_title = "Mu-";
-        self._sigma_title = "Sigma-";
-        self._hyper_parameter_vector_title = "Hyper-parameter-vector-";
-        self._hyper_parameter_matrix_title = "Hyper-parameter-matrix-";
+        self._table_info_title = "Table-information-";
+        self._topic_info_title = "Topic-information-";
+        self._hyper_parameter_title = "Hyper-parameter-";
 
     """
     @param data: a N-by-D numpy array object, defines N points of D dimension
@@ -43,10 +41,10 @@ class CollapsedGibbsSampling(object):
         
         # initialize alpha
         self._alpha = alpha;
-        # initialize gamma
-        self._gamma = gamma;
         # initialize eta
         self._eta = eta;
+        # initialize gamma
+        self._gamma = gamma;
 
         # initialize the documents, key by the document path, value by a list of non-stop and tokenized words, with duplication.
         self._corpus = data
@@ -97,9 +95,6 @@ class CollapsedGibbsSampling(object):
             self._n_kd[0, d] = len(self._corpus[d])
             
             self._m_k[0] += len(self._k_dt[d]);
-            
-        #print self._n_kv, self._n_kd, self._m_k
-        #print self._t_dv, self._k_dt, self._n_dt
 
     """
     sample the data to train the parameters
@@ -182,17 +177,17 @@ class CollapsedGibbsSampling(object):
                             assert(self._n_kd.shape==(self._K, self._D));
                             self._m_k = numpy.hstack((self._m_k, numpy.zeros(1)));
                             assert(len(self._m_k)==self._K);
-                    
-                        self.update_params(document_index, word_index, +1);
-                    else:
-                        self.update_params(document_index, word_index, +1);
+                            
+                        #self.update_params(document_index, word_index, +1);
+                    #else:
+                        #self.update_params(document_index, word_index, +1);
+                    self.update_params(document_index, word_index, +1);
                         
                 # sample table assignment, see which topic it should belong to
                 for table_index in numpy.random.permutation(xrange(len(self._k_dt[document_index]))):
                     # if this table is not empty, sample the topic assignment of this table
                     if self._n_dt[document_index][table_index]>0:
                         old_topic = self._k_dt[document_index][table_index];
-                        
 
                         # find the index of the words sitting on the current table
                         selected_word_index = numpy.nonzero(self._t_dv[document_index]==table_index)[0];
@@ -250,7 +245,7 @@ class CollapsedGibbsSampling(object):
                                 self._m_k = numpy.hstack((self._m_k, numpy.zeros(1)));
                                 assert(len(self._m_k)==self._K);
                                 
-                            # adjust the statistics
+                            # adjust the statistics of all model parameter
                             self._m_k[old_topic] -= 1;
                             self._m_k[new_topic] += 1;
                             self._n_kd[old_topic, document_index] -= self._n_dt[document_index][table_index];
@@ -264,22 +259,30 @@ class CollapsedGibbsSampling(object):
             self.compact_params();
             
             if iter>0 and iter%10==0:
-                print "sampling in progress %2d%%" % (100 * iter / iteration);        
+                print "sampling in progress %2d%%" % (100 * iter / iteration);
                 print "total number of topics %i" % (self._K);
                 
+            if (iter+1) % self._snapshot_interval == 0:
+                self.export_snapshot(directory, iter+1);
+                
     """
+    @param document_index: the document index to update
+    @param word_index: the word index to update
+    @param update: the update amount for this document and this word
+    @attention: the update table index and topic index is retrieved from self._t_dv and self._k_dt, so make sure these values were set properly before invoking this function
     """
     def update_params(self, document_index, word_index, update):
+        # retrieve the table_id of the current word of current document
         table_id = self._t_dv[document_index][word_index];
+        # retrieve the topic_id of the table that current word of current document sit on
         topic_id = self._k_dt[document_index][table_id];
+        # get the word_id of at the word_index of the document_index
         word_id = self._corpus[document_index][word_index];
 
         self._n_dt[document_index][table_id] += update;
         assert(numpy.all(self._n_dt[document_index]>=0));
-        
         self._n_kv[topic_id, word_id] += update;
         assert(numpy.all(self._n_kv>=0));
-
         self._n_kd[topic_id, document_index] += update;
         assert(numpy.all(self._n_kd>=0));
         
@@ -287,15 +290,11 @@ class CollapsedGibbsSampling(object):
         if update==-1 and self._n_dt[document_index][table_id]==0:
             # adjust the table counts
             self._m_k[topic_id] -= 1;
-            # clear the topic assign of that table
-            #self._k_dt[document_index][table_id] = -1;
             
         # if a new table is created in current document
         if update==1 and self._n_dt[document_index][table_id]==1:
             # adjust the table counts
             self._m_k[topic_id] += 1;
-            # clear the topic assign of that table
-            #self._k_dt[document_index][table_id] = +1;
             
         assert(numpy.all(self._m_k>=0));
         assert(numpy.all(self._k_dt[document_index]>=0));
@@ -343,19 +342,21 @@ class CollapsedGibbsSampling(object):
             os.mkdir(directory);
         assert(directory.endswith("/"));
         
-        numpy.savetxt(directory + self._label_title + str(index), numpy.uint8(self._label));
-        numpy.savetxt(directory + self._mu_title + str(index), self._sum[:self._K, :]/self._count[:self._K][numpy.newaxis, :].transpose());
-        sigma = self._sigma_inv;
-        for k in xrange(self._K):
-            sigma[k, :, :] = numpy.linalg.inv(sigma[k, :, :]);
-        numpy.savetxt(directory + self._sigma_title + str(index), numpy.reshape(sigma[:self._K, :, :], (self._K, self._D*self._D)));
-        vector = numpy.array([self._alpha, self._kappa_0, self._nu_0]);
-        numpy.savetxt(directory + self._hyper_parameter_vector_title + str(index), vector);
-        matrix = numpy.vstack((self._mu_0, self._lambda_0));
-        numpy.savetxt(directory + self._hyper_parameter_matrix_title, matrix);
+        hyper_parameter = numpy.array([self._alpha, self._eta, self._gamma]);
+        numpy.savetxt(directory + self._hyper_parameter_title + str(index), hyper_parameter);
         
+        output1 = open(directory + self._table_info_title + str(index), 'w');
+        output2 = open(directory + self._topic_info_title + str(index), 'w');
+        for d in xrange(self._D):
+            output1.write(" ".join([str(item) for item in self._t_dv[d]]) + "\n");
+            output2.write(" ".join([str(item) for item in self._k_dt[d]]) + "\n");
+            
         print "successfully export the snapshot to " + directory + " for iteration " + str(index) + "..."
-        
+
+"""
+some utility functions
+"""
+
 """
 """
 def import_monolingual_data(input_file):
@@ -397,11 +398,11 @@ def log_normalize(dist):
 run IGMM on the synthetic clustering dataset.
 """
 if __name__ == '__main__':
-    #temp_directory = "../../data/test/";
-    temp_directory = "../../data/de-news/en/corpus-2/";
+    temp_directory = "../../data/test/";
+    #temp_directory = "../../data/de-news/en/corpus-3/";
     data = import_monolingual_data(temp_directory + "doc.dat");
 
-    gs = CollapsedGibbsSampling();
+    gs = UncollapsedGibbsSampling();
     gs._initialize(data);
     
     gs.sample(100);

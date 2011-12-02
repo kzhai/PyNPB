@@ -120,7 +120,6 @@ class CollapsedGibbsSampling(object):
                 assert(old_label<self._K and old_label>=0 and numpy.dtype(old_label)==numpy.uint8);
 
                 # record down the inv(sigma) and log(det(sigma)) of the old cluster
-                #old_sigma = self._sigma[old_label, :, :];
                 old_sigma_inv = self._sigma_inv[old_label, :, :];
                 old_log_sigma_det = self._log_sigma_det[old_label];
 
@@ -191,12 +190,13 @@ class CollapsedGibbsSampling(object):
                 
                 cluster_posterior = cluster_prior * cluster_likelihood;
                 cluster_posterior /= numpy.sum(cluster_posterior);
-                
+
+                # sample a new cluster label for current point                
                 cdf = numpy.cumsum(cluster_posterior);
-                
                 new_label = numpy.uint8(numpy.nonzero(cdf>=numpy.random.random())[0][0]);
                 assert(new_label>=0 and new_label<=self._K and numpy.dtype(new_label)==numpy.uint8);
                 
+                # if this point starts up a new cluster
                 if new_label==self._K:
                     self._K += 1;
                 self._count[new_label] += 1;
@@ -205,10 +205,11 @@ class CollapsedGibbsSampling(object):
                 self._label[point_index] = new_label;
                 
                 if old_label==new_label:
-                    #self._sigma[new_label, :, :] = old_sigma;
+                    # if the point is allocated to the old cluster, retrieve all previous parameter
                     self._sigma_inv[new_label, :, :] = old_sigma_inv;
                     self._log_sigma_det[new_label] = old_log_sigma_det;
                 else:
+                    # if the point is allocated to a new cluster, compute all new parameter
                     mu_y = self._sum[[new_label], :] / self._count[new_label];
                     kappa_n = self._kappa_0 + self._count[new_label];
                     nu = self._nu_0 + self._count[new_label]-self._D+1;
@@ -227,7 +228,7 @@ class CollapsedGibbsSampling(object):
                 break
 
             if iter>0 and iter%100==0:
-                print "sampling in progress %2d%%" % (100 * iter / iteration);        
+                print "sampling in progress %2d%%" % (100 * iter / iteration);
                 print "total number of cluster %i" % (self._K);
                 
             if (iter+1) % self._snapshot_interval == 0:
