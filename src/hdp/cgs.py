@@ -200,11 +200,11 @@ class CollapsedGibbsSampling(object):
                         selected_word_freq_dist = FreqDist([self._corpus[document_index][term] for term in list(selected_word_index)]);
 
                         # compute the probability of assigning current table every topic
-                        topic_probablity = numpy.zeros(self._K+1);
-                        topic_probablity[self._K] = scipy.special.gammaln(self._V * self._eta) - scipy.special.gammaln(self._n_dt[document_index][table_index] + self._V * self._eta);
+                        topic_probability = numpy.zeros(self._K+1);
+                        topic_probability[self._K] = scipy.special.gammaln(self._V * self._eta) - scipy.special.gammaln(self._n_dt[document_index][table_index] + self._V * self._eta);
                         for word_id in selected_word_freq_dist.keys():
-                            topic_probablity[self._K] += scipy.special.gammaln(selected_word_freq_dist[word_id] + self._eta) - scipy.special.gammaln(self._eta);
-                        topic_probablity[self._K] += numpy.log(self._gamma);
+                            topic_probability[self._K] += scipy.special.gammaln(selected_word_freq_dist[word_id] + self._eta) - scipy.special.gammaln(self._eta);
+                        topic_probability[self._K] += numpy.log(self._gamma);
                         
                         n_k = numpy.sum(self._n_kv, axis=1);
                         assert(len(n_k)==(self._K))
@@ -214,24 +214,25 @@ class CollapsedGibbsSampling(object):
                                     # if current table is the only table assigned to current topic,
                                     # it means this topic is probably less useful or less generalizable to other documents,
                                     # it makes more sense to collapse this topic and hence assign this table to other topic.
-                                    topic_probablity[topic_index] = -1e500;
+                                    topic_probability[topic_index] = -1e500;
                                 else:
                                     # if there are other tables assigned to current topic
-                                    topic_probablity[topic_index] = scipy.special.gammaln(self._V * self._eta + n_k[topic_index] - self._n_dt[document_index][table_index]) - scipy.special.gammaln(self._V * self._eta + n_k[topic_index]);
+                                    topic_probability[topic_index] = scipy.special.gammaln(self._V * self._eta + n_k[topic_index] - self._n_dt[document_index][table_index]) - scipy.special.gammaln(self._V * self._eta + n_k[topic_index]);
                                     for word_id in selected_word_freq_dist.keys():
-                                        topic_probablity[topic_index] += scipy.special.gammaln(self._n_kv[topic_index, word_id] + self._eta) - scipy.special.gammaln(self._n_kv[topic_index, word_id] + self._eta - selected_word_freq_dist[word_id]);
+                                        topic_probability[topic_index] += scipy.special.gammaln(self._n_kv[topic_index, word_id] + self._eta) - scipy.special.gammaln(self._n_kv[topic_index, word_id] + self._eta - selected_word_freq_dist[word_id]);
                                     # compute the prior if we move this table from this topic
-                                    topic_probablity[topic_index] += numpy.log(self._m_k[topic_index]-1);
+                                    topic_probability[topic_index] += numpy.log(self._m_k[topic_index]-1);
                             else:
-                                topic_probablity[topic_index] = scipy.special.gammaln(self._V * self._eta + n_k[topic_index]) - scipy.special.gammaln(self._V * self._eta + n_k[topic_index] + self._n_dt[document_index][table_index]);
+                                topic_probability[topic_index] = scipy.special.gammaln(self._V * self._eta + n_k[topic_index]) - scipy.special.gammaln(self._V * self._eta + n_k[topic_index] + self._n_dt[document_index][table_index]);
                                 for word_id in selected_word_freq_dist.keys():
-                                    topic_probablity[topic_index] += scipy.special.gammaln(self._n_kv[topic_index, word_id] + self._eta + selected_word_freq_dist[word_id]) - scipy.special.gammaln(self._n_kv[topic_index, word_id] + self._eta);
-                                topic_probablity[topic_index] += numpy.log(self._m_k[topic_index]);
+                                    topic_probability[topic_index] += scipy.special.gammaln(self._n_kv[topic_index, word_id] + self._eta + selected_word_freq_dist[word_id]) - scipy.special.gammaln(self._n_kv[topic_index, word_id] + self._eta);
+                                topic_probability[topic_index] += numpy.log(self._m_k[topic_index]);
 
                         # normalize the distribution and sample new topic assignment for this topic
-                        topic_probablity = numpy.exp(topic_probablity);
-                        topic_probablity = topic_probablity/numpy.sum(topic_probablity);
-                        cdf = numpy.cumsum(topic_probablity);
+                        #topic_probability = numpy.exp(topic_probability);
+                        #topic_probability = topic_probability/numpy.sum(topic_probability);
+                        topic_probability = numpy.exp(log_normalize(topic_probability));
+                        cdf = numpy.cumsum(topic_probability);
                         new_topic = numpy.uint8(numpy.nonzero(cdf>=numpy.random.random())[0][0]);
                         
                         # if the table is assigned to a new topic
@@ -377,6 +378,20 @@ def import_monolingual_data(input_file):
 
     print "successfully import all documents..."
     return docs
+
+from math import log, exp;
+
+def log_add(log_a, log_b):
+    if log_a < log_b:
+        return log_b + log(1 + exp(log_a - log_b))
+    else:
+        return log_a + log(1 + exp(log_b - log_a))
+
+def log_normalize(dist):
+    normalizer = reduce(log_add, dist)
+    for ii in xrange(len(dist)):
+        dist[ii] -= normalizer
+    return dist
 
 """
 run IGMM on the synthetic clustering dataset.
