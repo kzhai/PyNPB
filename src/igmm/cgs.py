@@ -229,15 +229,23 @@ class CollapsedGibbsSampling(object):
 
             if iter > 0 and iter % 100 == 0:
                 print "sampling in progress %2d%%" % (100 * iter / iteration);
-                print "total number of cluster %i" % (self._K);
+                print "total number of cluster %i, likelihood is %f" % (self._K, self.log_likelihood());
                 
             if (iter + 1) % self._snapshot_interval == 0:
                 self.export_snapshot(directory, iter + 1);
 
     """
     """
-    def log_likelihood(self, directory, index):
+    def log_likelihood(self):
         log_likelihood = 0;
+        for n in xrange(self._N):
+            log_likelihood -= 0.5 * self._D * numpy.log(2.0 * numpy.pi) + 0.5 * self._log_sigma_det;
+            mean_offset = self._X[n, :][numpy.newaxis, :] - self._sum[self._label[n], :][numpy.newaxis, :]/self._count[self._label[n]];
+            assert(mean_offset.shape==(1, self._D));
+            log_likelihood -= 0.5 * numpy.dot(numpy.dot(mean_offset, self._sigma_inv[self._label[n], :, :]), mean_offset.transpose());
+
+        #todo: add in the likelihood for K and hyperparameter
+        
         return log_likelihood;
                 
     """
