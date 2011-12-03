@@ -181,9 +181,6 @@ class UncollapsedGibbsSampling(object):
                             self._m_k = numpy.hstack((self._m_k, numpy.zeros(1)));
                             assert(len(self._m_k) == self._K);
                             
-                        #self.update_params(document_index, word_index, +1);
-                    #else:
-                        #self.update_params(document_index, word_index, +1);
                     self.update_params(document_index, word_index, +1);
                         
                 # sample table assignment, see which topic it should belong to
@@ -413,9 +410,6 @@ class UncollapsedGibbsSampling(object):
 """
 some utility functions
 """
-
-"""
-"""
 def import_monolingual_data(input_file):
     import codecs
     input = codecs.open(input_file, mode="r", encoding="utf-8")
@@ -463,7 +457,7 @@ def log_factorial(n, a):
     return scipy.special.gammaln(n + a) - scipy.special.gammaln(a);
 
 """
-run IGMM on the synthetic clustering dataset.
+run HDP on a synthetic corpus.
 """
 if __name__ == '__main__':
     temp_directory = "../../data/test/";
