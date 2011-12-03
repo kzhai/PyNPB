@@ -237,9 +237,9 @@ class CollapsedGibbsSampling(object):
     """
     """
     def log_likelihood(self):
-        log_likelihood = 0;
+        log_likelihood = 0.;
         for n in xrange(self._N):
-            log_likelihood -= 0.5 * self._D * numpy.log(2.0 * numpy.pi) + 0.5 * self._log_sigma_det;
+            log_likelihood -= 0.5 * self._D * numpy.log(2.0 * numpy.pi) + 0.5 * self._log_sigma_det[self._label[n]];
             mean_offset = self._X[n, :][numpy.newaxis, :] - self._sum[self._label[n], :][numpy.newaxis, :]/self._count[self._label[n]];
             assert(mean_offset.shape==(1, self._D));
             log_likelihood -= 0.5 * numpy.dot(numpy.dot(mean_offset, self._sigma_inv[self._label[n], :, :]), mean_offset.transpose());
@@ -273,7 +273,7 @@ class CollapsedGibbsSampling(object):
 run IGMM on the synthetic clustering dataset.
 """
 if __name__ == '__main__':
-    data = numpy.loadtxt('../../data/clustering/2-clusters/data.dat');
+    data = numpy.loadtxt('../../data/clustering/test.dat');
         
     gs = CollapsedGibbsSampling();
     gs._initialize(data);
