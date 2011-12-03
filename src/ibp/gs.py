@@ -17,22 +17,22 @@ class GibbsSampling(object):
     @param snapshot_interval: the interval for exporting a snapshot of the model
     """
     def __init__(self, #real_valued_latent_feature=True,
-                 alpha_hyper_parameter=None, 
-                 sigma_a_hyper_parameter=None, 
+                 alpha_hyper_parameter=None,
+                 sigma_a_hyper_parameter=None,
                  sigma_x_hyper_parameter=None,
                  metropolis_hastings_k_new=True,
-                 snapshot_interval = 10):
+                 snapshot_interval=10):
         # initialize the hyper-parameter for sampling _alpha
         # a value of None is a gentle way to say "do not sampling _alpha"
-        assert(alpha_hyper_parameter==None or type(alpha_hyper_parameter)==tuple);
+        assert(alpha_hyper_parameter == None or type(alpha_hyper_parameter) == tuple);
         self._alpha_hyper_parameter = alpha_hyper_parameter;
         # initialize the hyper-parameter for sampling _sigma_x
         # a value of None is a gentle way to say "do not sampling _sigma_x"
-        assert(sigma_x_hyper_parameter==None or type(sigma_x_hyper_parameter)==tuple);
+        assert(sigma_x_hyper_parameter == None or type(sigma_x_hyper_parameter) == tuple);
         self._sigma_x_hyper_parameter = sigma_x_hyper_parameter;
         # initialize the hyper-parameter for sampling _sigma_a
         # a value of None is a gentle way to say "do not sampling _sigma_a"
-        assert(sigma_a_hyper_parameter==None or type(sigma_a_hyper_parameter)==tuple);
+        assert(sigma_a_hyper_parameter == None or type(sigma_a_hyper_parameter) == tuple);
         self._sigma_a_hyper_parameter = sigma_a_hyper_parameter;
         
         #self._real_valued_latent_feature = real_valued_latent_feature;
@@ -69,23 +69,23 @@ class GibbsSampling(object):
         else:
             self._Z = initial_Z;
             
-        assert(self._Z.shape[0]==self._N);
+        assert(self._Z.shape[0] == self._N);
         
         # make sure Z matrix is a binary matrix
-        assert(self._Z.dtype==numpy.int);
-        assert(self._Z.max()==1 and self._Z.min()==0);    
+        assert(self._Z.dtype == numpy.int);
+        assert(self._Z.max() == 1 and self._Z.min() == 0);    
                 
         # record down the number of features
         self._K = self._Z.shape[1];
         
-        if A_prior==None:
+        if A_prior == None:
             self._A_prior = numpy.zeros((1, self._D));
         else:
             self._A_prior = A_prior; 
-        assert(self._A_prior.shape==(1, self._D));
+        assert(self._A_prior.shape == (1, self._D));
         
         self._A = self.map_estimate_A();
-        assert(self._A.shape==(self._K, self._D));
+        assert(self._A.shape == (self._K, self._D));
 
         return;
 
@@ -93,12 +93,12 @@ class GibbsSampling(object):
     initialize latent feature appearance matrix Z according to IBP(alpha)
     """
     def initialize_Z(self):
-        Z = numpy.ones((0,0));
+        Z = numpy.ones((0, 0));
         # initialize matrix Z recursively in IBP manner
-        for i in xrange(1,self._N+1):
+        for i in xrange(1, self._N + 1):
             # sample existing features
             # Z.sum(axis=0)/i: compute the popularity of every dish, computes the probability of sampling that dish
-            sample_dish = (numpy.random.uniform(0,1,(1,Z.shape[1])) < (Z.sum(axis=0).astype(numpy.float) / i));
+            sample_dish = (numpy.random.uniform(0, 1, (1, Z.shape[1])) < (Z.sum(axis=0).astype(numpy.float) / i));
             # sample a value from the poisson distribution, defines the number of new features
             K_new = scipy.stats.poisson.rvs((self._alpha * 1.0 / i));
             # horizontally stack or append the new dishes to current object's observation vector, i.e., the vector Z_{n*}
@@ -107,7 +107,7 @@ class GibbsSampling(object):
             Z = numpy.hstack((Z, numpy.zeros((Z.shape[0], K_new))));
             Z = numpy.vstack((Z, sample_dish));
             
-        assert(Z.shape[0]==self._N);
+        assert(Z.shape[0] == self._N);
         Z = Z.astype(numpy.int);
         
         return Z
@@ -118,7 +118,7 @@ class GibbsSampling(object):
     """
     def map_estimate_A(self):
         (mean, std_dev) = self.sufficient_statistics_A();
-        assert(mean.shape==(self._K, self._D));
+        assert(mean.shape == (self._K, self._D));
         
         return mean
 
@@ -129,10 +129,10 @@ class GibbsSampling(object):
     """
     @staticmethod
     def sample_sigma(sigma_hyper_parameter, matrix):
-        assert(sigma_hyper_parameter!=None);
-        assert(matrix!=None);
-        assert(type(sigma_hyper_parameter)==tuple);
-        assert(type(matrix)==numpy.ndarray);
+        assert(sigma_hyper_parameter != None);
+        assert(matrix != None);
+        assert(type(sigma_hyper_parameter) == tuple);
+        assert(type(matrix) == numpy.ndarray);
         
         (sigma_hyper_a, sigma_hyper_b) = sigma_hyper_parameter;
         (row, column) = matrix.shape;
@@ -141,14 +141,14 @@ class GibbsSampling(object):
         posterior_shape = sigma_hyper_a + 0.5 * row * column;
         # compute the posterior_scale = sigma_hyper_b + sum_{k} (A_k - \mu_A)(A_k - \mu_A)^\top/2
         var = 0;
-        if row>=column:
+        if row >= column:
             var = numpy.trace(numpy.dot(matrix.transpose(), matrix));
         else:
             var = numpy.trace(numpy.dot(matrix, matrix.transpose()));
         
-        posterior_scale = 1.0/(sigma_hyper_b + var*0.5);
-        tau = scipy.stats.gamma.rvs(posterior_shape,scale=posterior_scale);
-        sigma_a_new = numpy.sqrt(1.0/tau);
+        posterior_scale = 1.0 / (sigma_hyper_b + var * 0.5);
+        tau = scipy.stats.gamma.rvs(posterior_shape, scale=posterior_scale);
+        sigma_a_new = numpy.sqrt(1.0 / tau);
         
         return sigma_a_new;
     
@@ -156,20 +156,20 @@ class GibbsSampling(object):
     sample alpha from conjugate posterior
     """
     def sample_alpha(self):
-        assert(self._alpha_hyper_parameter!=None);
-        assert(type(self._alpha_hyper_parameter)==tuple);
+        assert(self._alpha_hyper_parameter != None);
+        assert(type(self._alpha_hyper_parameter) == tuple);
     
         (alpha_hyper_a, alpha_hyper_b) = self._alpha_hyper_parameter;
         
         posterior_shape = alpha_hyper_a + self._K;
-        H_N = numpy.array([range(self._N)])+1.0;
-        H_N = numpy.sum(1.0/H_N);
-        posterior_scale = 1.0/(alpha_hyper_b + H_N);
+        H_N = numpy.array([range(self._N)]) + 1.0;
+        H_N = numpy.sum(1.0 / H_N);
+        posterior_scale = 1.0 / (alpha_hyper_b + H_N);
         
         #posterior_shape = alpha_hyper_a + self._Z.sum();
         #posterior_scale = 1.0/(alpha_hyper_b + self._N);
      
-        alpha_new = scipy.stats.gamma.rvs(posterior_shape,scale=posterior_scale);
+        alpha_new = scipy.stats.gamma.rvs(posterior_shape, scale=posterior_scale);
         
         return alpha_new;
     
@@ -178,8 +178,8 @@ class GibbsSampling(object):
     """
     def log_likelihood_Z(self):
         # compute {K_+} \log{\alpha} - \alpha * H_N, where H_N = \sum_{j=1}^N 1/j
-        H_N = numpy.array([range(self._N)])+1.0;
-        H_N = numpy.sum(1.0/H_N);
+        H_N = numpy.array([range(self._N)]) + 1.0;
+        H_N = numpy.sum(1.0 / H_N);
         log_likelihood = self._K * numpy.log(self._alpha) - self._alpha * H_N;
         
         # compute the \sum_{h=1}^{2^N-1} \log{K_h!}
@@ -192,19 +192,19 @@ class GibbsSampling(object):
         for k in xrange(self._K):
             m_k = Z_h[k];
             temp_var = 1.0;
-            if m_k-1<self._N-m_k:
-                for k_prime in range(self._N-m_k+1, self._N+1):
-                    if m_k!=1:
+            if m_k - 1 < self._N - m_k:
+                for k_prime in range(self._N - m_k + 1, self._N + 1):
+                    if m_k != 1:
                         m_k -= 1;
                         
                     temp_var /= k_prime;
                     temp_var *= m_k;
             else:
                 n_m_k = self._N - m_k;
-                for k_prime in range(m_k, self._N+1):
+                for k_prime in range(m_k, self._N + 1):
                     temp_var /= k_prime;
                     temp_var += n_m_k;
-                    if n_m_k!=1:
+                    if n_m_k != 1:
                         n_m_k -= 1;
             
             log_likelihood += numpy.log(temp_var);            
@@ -216,11 +216,11 @@ class GibbsSampling(object):
     @param Z: default to None, if set, M matrix will be computed according to the passed in Z matrix
     """
     def compute_M(self, Z=None):
-        if Z==None:
+        if Z == None:
             Z = self._Z;
             
         K = Z.shape[1];
-        M = numpy.linalg.inv(numpy.dot(Z.transpose(), Z) + (self._sigma_x/self._sigma_a)**2*numpy.eye(K));
+        M = numpy.linalg.inv(numpy.dot(Z.transpose(), Z) + (self._sigma_x / self._sigma_a) ** 2 * numpy.eye(K));
         return M
 
     """
@@ -233,7 +233,7 @@ class GibbsSampling(object):
         # compute the mean of the matrix A
         mean_A = numpy.dot(M, numpy.dot(self._Z.transpose(), self._X));
         # compute the co-variance of the matrix A
-        std_dev_A = numpy.linalg.cholesky(self._sigma_x**2 * M).transpose();
+        std_dev_A = numpy.linalg.cholesky(self._sigma_x ** 2 * M).transpose();
         
         return (mean_A, std_dev_A)
 
@@ -265,7 +265,7 @@ class GibbsSampling(object):
         (self._N, self._K) = self._Z.shape;
         (self._N, self._D) = self._X.shape;
         assert(self._Z.shape[0] == self._X.shape[0]);
-        assert(self._A.shape==(self._K, self._D));
+        assert(self._A.shape == (self._K, self._D));
         (self._alpha, self._sigma_a, self._sigma_x) = numpy.loadtxt(directory + self._hyper_parameter_vector_title + str(index));
         print "successfully import the snapshot from " + directory + " for iteration " + str(index) + "..."
     

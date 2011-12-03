@@ -21,7 +21,7 @@ class CollapsedGibbsSampling(GibbsSampling):
     @param sigma_a: standard derivation of the feature, often referred as sigma_f as well
     @param initializ_Z: seeded Z matrix
     """
-    def _initialize(self, data, alpha=1.0, sigma_a=1.0, sigma_x=1.0,  A_prior=None, initial_Z=None):
+    def _initialize(self, data, alpha=1.0, sigma_a=1.0, sigma_x=1.0, A_prior=None, initial_Z=None):
         super(CollapsedGibbsSampling, self)._initialize(self.center_data(data), alpha, sigma_a, sigma_x, initial_Z);
 
         if A_prior == None:
@@ -35,7 +35,7 @@ class CollapsedGibbsSampling(GibbsSampling):
         self._M = self.compute_M();
         self._log_det_M = numpy.log(numpy.linalg.det(self._M));
 
-        assert(numpy.abs(numpy.log(numpy.linalg.det(self._M))-self._log_det_M) < 0.000000001)
+        assert(numpy.abs(numpy.log(numpy.linalg.det(self._M)) - self._log_det_M) < 0.000000001)
     
     """
     sample the corpus to train the parameters
@@ -53,7 +53,7 @@ class CollapsedGibbsSampling(GibbsSampling):
             # sample every object
             order = numpy.random.permutation(self._N);
             for (object_counter, object_index) in enumerate(order):
-                if object_counter>0 and object_counter%100==0:
+                if object_counter > 0 and object_counter % 100 == 0:
                     print("sampling in progress %2d%%" % (100 * object_counter / self._N));
                 
                 # compute M_i
@@ -74,17 +74,17 @@ class CollapsedGibbsSampling(GibbsSampling):
             if self._alpha_hyper_parameter != None:
                 self._alpha = self.sample_alpha();
 
-            if self._sigma_x_hyper_parameter!=None:
+            if self._sigma_x_hyper_parameter != None:
                 self._sigma_x = self.sample_sigma_x(self._sigma_x_hyper_parameter);
             
-            if self._sigma_a_hyper_parameter!=None:
+            if self._sigma_a_hyper_parameter != None:
                 self._sigma_a = self.sample_sigma_a(self._sigma_a_hyper_parameter);
                 
             print("iteration: %i\tK: %i\tlikelihood: %f" % (iter, self._K, self.log_likelihood_model()));
             print("alpha: %f\tsigma_a: %f\tsigma_x: %f" % (self._alpha, self._sigma_a, self._sigma_x));
             
-            if (iter+1) % self._snapshot_interval == 0:
-                self.export_snapshot(directory, iter+1);
+            if (iter + 1) % self._snapshot_interval == 0:
+                self.export_snapshot(directory, iter + 1);
 
     """
     @param object_index: an int data type, indicates the object index (row index) of Z we want to sample
@@ -164,7 +164,7 @@ class CollapsedGibbsSampling(GibbsSampling):
         # sample K_new from the metropolis hastings proposal distribution, i.e., a poisson distribution with mean \frac{\alpha}{N}
         K_temp = scipy.stats.poisson.rvs(self._alpha / self._N);
         
-        if K_temp <= 0 and len(singleton_features)<=0:
+        if K_temp <= 0 and len(singleton_features) <= 0:
             return False;
         
         # compute the probability of using old features
@@ -224,7 +224,7 @@ class CollapsedGibbsSampling(GibbsSampling):
     @param Z: a 2-D numpy boolean array
     @param A: a 2-D numpy array, integrate A out if it is set to None
     """
-    def log_likelihood_X(self, M=None, log_det_M = None, Z=None):
+    def log_likelihood_X(self, M=None, log_det_M=None, Z=None):
         if M == None:
             M = self._M;
             if log_det_M == None:
@@ -316,11 +316,11 @@ if __name__ == '__main__':
     for (idx, trueFactor) in enumerate(true_weights):
         ax = subaxes[0, idx]
         ax.set_visible(True)
-        scaledimage(trueFactor.reshape(6,6),
+        scaledimage(trueFactor.reshape(6, 6),
                     pixwidth=3, ax=ax)
     for (idx, learnedFactor) in enumerate(ibp._A):
         ax = subaxes[1, idx]
-        scaledimage(learnedFactor.reshape(6,6),
+        scaledimage(learnedFactor.reshape(6, 6),
                     pixwidth=3, ax=ax)
         ax.set_visible(True)
     P.show()
