@@ -1,7 +1,11 @@
 """
 Author: Ke Zhai (zhaike@cs.umd.edu)
 
+This code was modified from the code originally written by Chong Wang (chongw@cs.princeton.edu).
 Implements uncollapsed Gibbs sampling for the hierarchical Dirichlet process (HDP).
+
+References:
+[1] Chong Wang and David Blei, A Split-Merge MCMC Algorithm for the Hierarchical Dirichlet Process, available online www.cs.princeton.edu/~chongw/papers/sm-hdp.pdf.
 """
 
 import numpy, scipy;
@@ -39,11 +43,11 @@ class UncollapsedGibbsSampling(object):
         # initialize the total number of topics.
         self._K = K;
         
-        # initialize alpha
+        # initialize alpha, the probability of f_{k_{\mathsf{new}}}^{-x_{dv}}(x_{dv}), the prior probability density for x_{dv}
         self._alpha = alpha;
-        # initialize eta
+        # initialize eta, the smoothing value for a word to be assigned to a new topic
         self._eta = eta;
-        # initialize gamma
+        # initialize gamma, the smoothing value for a table to be assigned to a new topic
         self._gamma = gamma;
 
         # initialize the documents, key by the document path, value by a list of non-stop and tokenized words, with duplication.
@@ -350,7 +354,7 @@ class UncollapsedGibbsSampling(object):
         return log_likelihood
         
     """
-    compute the table level log likelihood
+    compute the table level prior in log scale \prod_{d=1}^D (p(t_{d})), where p(t_d) = \frac{ \alpha^m_d \prod_{t=1}^{m_d}(n_di-1)! }{ \prod_{v=1}^{n_d}(v+\alpha-1) }
     """
     def table_log_likelihood(self):
         log_likelihood = 0.;
@@ -362,7 +366,7 @@ class UncollapsedGibbsSampling(object):
         return log_likelihood
     
     """
-    compute the topic level log likelihood
+    compute the topic level prior in log scale p(k) = \frac{ \gamma^K \prod_{k=1}^{K}(m_k-1)! }{ \prod_{s=1}^{m}(s+\gamma-1) }
     """
     def topic_log_likelihood(self):
         log_likelihood = self._K * numpy.log(self._gamma) - log_factorial(numpy.sum(self._m_k), self._gamma);
@@ -372,7 +376,7 @@ class UncollapsedGibbsSampling(object):
         return log_likelihood
     
     """
-    compute the word level log likelihood
+    compute the word level log likelihood p(x | t, k) = \prod_{k=1}^K f(x_{ij} | z_{ij}=k), where f(x_{ij} | z_{ij}=k) = \frac{\Gamma(V \eta)}{\Gamma(n_k + V \eta)} \frac{\prod_{v} \Gamma(n_{k}^{v} + \eta)}{\Gamma^V(\eta)}
     """
     def word_log_likelihood(self):
         n_k = numpy.sum(self._n_kd, axis=1);
