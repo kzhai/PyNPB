@@ -336,7 +336,7 @@ class UncollapsedGibbsSampling(object):
 
     """
     compute the log likelihood of the model
-    """                
+    """
     def log_likelihood(self):
         log_likelihood = 0.;
         # compute the document level log likelihood
@@ -457,6 +457,36 @@ def log_factorial(n, a):
     return scipy.special.gammaln(n + a) - scipy.special.gammaln(a);
 
 """
+"""
+def print_topics(n_kv, term_mapping, top_words=10):
+    input = open(term_mapping);
+    vocab = {};
+    i = 0;
+    for line in input:
+        vocab[i] = line.strip();
+        i += 1;
+
+    (K, V) = n_kv.shape;
+    assert(V == len(vocab));
+
+    if top_words >= V:
+        sorted_counts = numpy.zeros((1, K)) - numpy.log(V);
+    else:
+        sorted_counts = numpy.sort(n_kv, axis=1);
+        sorted_counts = sorted_counts[:, -top_words][:, numpy.newaxis];
+    
+    assert(sorted_counts.shape==(K, 1));
+
+    for k in xrange(K):
+        display = (n_kv[[k], :] >= sorted_counts[k, :]);
+        assert(display.shape == (1, V));
+        output_str = str(k) + ": ";
+        for v in xrange(self._V):
+            if display[:, v]:
+                output_str += vocab[v] + "\t";
+        print output_str
+
+"""
 run HDP on a synthetic corpus.
 """
 if __name__ == '__main__':
@@ -464,10 +494,10 @@ if __name__ == '__main__':
     #temp_directory = "../../data/de-news/en/corpus-3/";
     data = import_monolingual_data(temp_directory + "doc.dat");
 
-    gs = UncollapsedGibbsSampling(100);
+    gs = UncollapsedGibbsSampling(50);
     gs._initialize(data);
     
-    gs.sample(100);
+    gs.sample(200);
     
-    print gs._K
-    print gs._n_kd
+    print gs._K;
+    print gs._n_kv
