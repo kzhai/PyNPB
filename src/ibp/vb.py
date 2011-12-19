@@ -1,135 +1,251 @@
 """
-VariationalBayes
+VariationalBayes for IBP
 @author: Ke Zhai (zhaike@cs.umd.edu)
 """
 
-import abc;
-import math, random;
 import numpy, scipy;
+import scipy.special;
 
 """
+This is a python implementation of vanilla ibp, based on variational inference, with hyper parameter updating.
+
+References:
+
 """
 class VariationalBayes(object):
-    __metaclass__ = abc.ABCMeta;
-
-
+    """
+    """
+    def __init__(self,
+                 snapshot_interval=10,
+                 finite_mode=True,
+                 model_likelihood_threshold=0.00001,
+                 global_maximum_iteration=100):
+        self._global_maximum_iteration = global_maximum_iteration;
+        self._finite_mode = finite_mode;
+        self._model_likelihood_threshold = model_likelihood_threshold;
         
+        self._snapshot_interval = snapshot_interval;
+    
     """
     @param num_topics: the number of topics
     @param data: a defaultdict(dict) data type, first indexed by doc id then indexed by term id
     take note: words are not terms, they are repeatable and thus might be not unique
     """
-    def _initialize(self, data, num_topics=10):
-        # initialize the total number of topics.
-        self._K = num_topics
-        
-        # initialize a K-dimensional vector, valued at 1/K.
-        self._alpha = numpy.random.random((1, self._K)) / self._K;
+    def _initialize(self, data, truncation_level=10, alpha=1., sigma_a=1., sigma_x=1.):
+        self._X = data;
+        (self._N, self._D) = self._X.shape;
 
-        # initialize the documents, key by the document path, value by a list of non-stop and tokenized words, with duplication.
-        from util.input_parser import dict_list_2_dict_freqdist
-        data = dict_list_2_dict_freqdist(data);
-        self._data = data
+        self._K = truncation_level;
         
-        # initialize the size of the collection, i.e., total number of documents.
-        self._D = len(self._data)
+        self._alpha = alpha;
+        self._sigma_a = sigma_a;
+        self._sigma_x = sigma_x;
         
-        # initialize the vocabulary, i.e. a list of distinct tokens.
-        self._vocab = []
-        for token_list in data.values():
-            self._vocab += token_list
-        self._vocab = list(set(self._vocab))
-        
-        # initialize the size of the vocabulary, i.e. total number of distinct tokens.
-        self._V = len(self._vocab)
-        
-        # initialize a D-by-K matrix gamma, valued at N_d/K
-        self._gamma = numpy.tile(self._alpha + 1.0 * self._V / self._K, (self._D, 1));
-        
-        # initialize a V-by-K matrix beta, valued at 1/V, subject to the sum over every row is 1
-        self._log_beta = 1.0 / self._V + numpy.random.random((self._V, self._K));
-        self._log_beta = self._log_beta / numpy.sum(self._log_beta, axis=0)[numpy.newaxis, :];
-        self._log_beta = numpy.log(self._log_beta);
+        # tau
+        self._tau = numpy.ones((2, self._K));
+        if self._finite_mode:
+            self._tau[0, :] = self._alpha / self._K;
+            self._tau += 0.5 * numpy.min(1., self._alpha/self._K) * (numpy.random.random(self._tau.shape) - 0.5);
+        else:
+            self._tau[0, :] = self._alpha;
+            self._tau += 0.5 * numpy.min(1., self._alpha) * (numpy.random.random(self._tau.shape) - 0.5);
+        # nu
+        self._nu = numpy.random.random((self._N, self._K));
+        # mean
+        self._phi_mean = numpy.random.normal(0., 1., (self._K, self._D)) * 0.01;
+        # covariance
+        self._phi_cov = numpy.random.normal(0., 1., (self._K, self._D)) ** 2 * 0.1;
 
     """
-    @param alpha_vector: a dict data type represents dirichlet prior, indexed by topic_id
-    @param alpha_sufficient_statistics: a dict data type represents alpha sufficient statistics for alpha updating, indexed by topic_id
-    @param rho: a step size adjustment factor, set to 1 if vanilla lda 
     """
-    def update_alpha(self, alpha_sufficient_statistics, rho):
-        assert(alpha_sufficient_statistics.shape == (1, self._K));        
-        alpha_update = self._alpha;
-        
-        decay = 0;
-        for alpha_iteration in xrange(self._alpha_maximum_iteration):
-            alpha_sum = numpy.sum(self._alpha);
-            alpha_gradient = self._D * (scipy.special.psi(alpha_sum) - scipy.special.psi(self._alpha)) + alpha_sufficient_statistics;
-            alpha_hessian = -self._D * scipy.special.polygamma(1, self._alpha);
+    def update_phi(self):
+        nu_sum = numpy.sum(self._nu, axis=0)
+        assert(len(nu_sum)==self._K);
+        for k in numpy.random.permutation(xrange(self._K)):
+            # we assume the covariance matrix is a diagonal matrix and we only store the diagonal terms
+            self._phi_cov[k, :] = 1. / (1./(self._sigma_a * self._sigma_a) + nu_sum[k]/(self._sigma_x * self._sigma_x));
 
-            if numpy.any(numpy.isinf(alpha_gradient)) or numpy.any(numpy.isnan(alpha_gradient)):
-                print "illegal alpha gradient vector", alpha_gradient
-
-            sum_g_h = numpy.sum(alpha_gradient / alpha_hessian);
-            sum_1_h = 1.0 / alpha_hessian;
-
-            z = self._D * scipy.special.polygamma(1, alpha_sum);
-            c = sum_g_h / (1.0 / z + sum_1_h);
-
-            # update the alpha vector
-            while True:
-                singular_hessian = False
-
-                step_size = numpy.power(self._alpha_update_decay_factor, decay) * (alpha_gradient - c) / alpha_hessian;
-                step_size *= rho;
-                #print "step size is", step_size
-                assert(self._alpha.shape == step_size.shape);
-                
-                if numpy.any(self._alpha <= step_size):
-                    singular_hessian = True
-                else:
-                    alpha_update = self._alpha - step_size;
-                
-                if singular_hessian:
-                    decay += 1;
-                    if decay > self._alpha_maximum_decay:
-                        break;
-                else:
-                    break;
-                
-            # compute the alpha sum
-            # check the alpha converge criteria
-            mean_change = numpy.mean(abs(alpha_update - self._alpha));
-            self._alpha = alpha_update;
-            if mean_change <= self._alpha_converge_threshold:
-                break;
-
+            phi_mean = numpy.dot(self._nu[:, k][:, numpy.newaxis].transpose(), self._X);
+            assert(phi_mean.shape==(1, self._D));
+            for n in xrange(self._N):
+                phi_mean -= self._nu[n, k] * (numpy.dot(self._nu[n, :][numpy.newaxis, :], self._phi_mean) - numpy.dot(self._nu[n, k], self._phi_mean[k, :][numpy.newaxis, :]));
+            assert(phi_mean.shape==(1, self._D));
+            phi_mean /= self._sigma_x*self._sigma_x;
+            self._phi_mean[k, :] = phi_mean * self._phi_cov[k, :];
+            
         return
 
     """
     """
-    def print_topics(self, term_mapping, top_words=10):
-        input = open(term_mapping);
-        vocab = {};
-        i = 0;
-        for line in input:
-            vocab[i] = line.strip();
-            i += 1;
-
-        if top_words >= self._V:
-            sorted_beta = numpy.zeros((1, self._K)) - numpy.log(self._V);
+    def update_nu(self):
+        var_theta_constant = self.compute_var_theta_constant();
+        for k in numpy.random.permutation(xrange(self._K)):
+            for n in numpy.random.permutation(xrange(self._N)):
+                x_nu_phi = self._X[n, :][numpy.newaxis, :] - (numpy.dot(self._nu[n, :][numpy.newaxis, :], self._phi_mean) - numpy.dot(self._nu[n, k], self._phi_mean[k, :][numpy.newaxis, :]));
+                assert(x_nu_phi.shape==(1, self._D));
+                var_theta = var_theta_constant[k] + 1. / (self._sigma_x * self._sigma_x) * numpy.dot(self._phi_mean[k, :][numpy.newaxis, :], x_nu_phi.transpose());
+                self._nu[n, k] = 1. / (1. + numpy.exp(-var_theta));
+        return
+    
+    """
+    """
+    def update_tau(self):
+        sum_nu = numpy.sum(self._nu, axis=0);
+        if self._finite_mode:
+            assert(len(sum_nu)==self._K);
+            self._tau[0, :] = self._alpha / self._K + sum_nu;
+            self._tau[1, :] = 1. + self._N - sum_nu;
         else:
-            sorted_beta = numpy.sort(self._log_beta, axis=0);
-            sorted_beta = sorted_beta[-top_words, :][numpy.newaxis, :];
+            N_minus_sum_nu = self._N - sum_nu;
+            psi_tau = scipy.special.psi(self._tau);
+            assert(psi_tau.shape==(2, self._K));
+            psi_sum_tau = scipy.special.psi(numpy.sum(self._tau, axis=0));
+            assert(len(psi_tau.shape)==self._K);
+            psi_tau0_cumsum = numpy.hstack([0, numpy.cumsum(psi_tau[0, :])]);
+            assert(len(psi_tau0_cumsum)==self._K+1);
+            psi_sum_cumsum = numpy.cumsum(psi_sum_tau);
+            assert(len(psi_sum_cumsum)==self._K);
+            exponent = psi_tau[1, :] + psi_tau_cumsum - psi_sum_cumsum;
+            unnormalized = numpy.exp(exponent - numpy.max(exponent));
+            assert(len(unnormalized)==self._K);
+            for k in xrange(self._K):
+                qs = numpy.zeros((self._K, self._K));
+                for m in xrange(k, self._K):
+                    qs[m, 0:m] = unnormalized[0:m] / numpy.sum(unnormalized[0:m]);
+                
+                self._tau[0, k] = numpy.sum(sum_nu[k:self._K]) + numpy.dot(N_minus_sum_nu[k+1:self._K], numpy.sum(qs[k+1:self._K, k+1:self._K], axis=1)) + self._alpha;
+                self._tau[1, k] = numpy.dot(N_minus_sum_nu[k:self._K], qs[k:self._K, k]) + 1;
+        return;
+    
+    """
+    """
+    def compute_var_theta_constant(self):
+        var_theta_constant = - 0.5 / (self._sigma_x*self._sigma_x) * (numpy.sum(self._phi_cov, axis=1) + numpy.sum(self._phi_mean*self._phi_mean, axis=1));
+        assert(len(var_theta_constant)==self._K);
+        if self._finite_mode:
+            var_theta_constant += scipy.special.psi(self._tau[0, :]) - scipy.special.psi(self._tau[1, :]);
+        else:
+            for k in xrange(self._K):
+                var_theta_constant[k] += numpy.sum(scipy.special.psi(self._tau[0, 0:k]) - scipy.special.psi(numpy.sum(self._tau[:, 0:k])));
+                var_theta_constant[k] -= self.compute_expected_pzk0_qjensen(k);
+        return var_theta_constant;
 
-        #print sorted_beta;
+    """
+    """
+    def compute_expected_pzk0_qjensen(self, k):
+        assert(k>=0 and k<self._K);
+        tau = self._tau[:, 0:k+1];
+        assert(tau.shape==(2, k));
+        psi_tau = scipy.special.psi(tau);
+        assert(psi_tau.shape==(2, k));
+        psi_sum_tau = scipy.special.psi(numpy.sum(tau, axis=0));
+        assert(len(psi_tau.shape)==k);
+        psi_tau0_cumsum = numpy.hstack([0, numpy.cumsum(psi_tau[0, :])]);
+        assert(len(psi_tau0_cumsum)==k+1);
+        psi_sum_cumsum = numpy.cumsum(psi_sum_tau);
+        assert(len(psi_sum_cumsum)==k);
+        tmp = psi_tau[1, :] + psi_tau0_cumsumd[0:k] - psi_sum_cumsum;
+        assert(len(tmp)==k);
+        q = numpy.exp(tmp - numpy.max(tmp));
+        assert(len(q)==k);
+        q = q / numpy.sum(q);
+        assert(len(q)==k);
+
+        # compute the lower bound
+        lower_bound = numpy.sum(q * (tmp - numpy.log(q)));
         
-        #display = self._log_beta > -numpy.log(self._V);
-        #assert(display.shape==(self._V, self._K));
-        for k in xrange(self._K):
-            display = self._log_beta[:, [k]] >= sorted_beta[:, k];
-            assert(display.shape == (self._V, 1));
-            output_str = str(k) + ": ";
-            for v in xrange(self._V):
-                if display[v, :]:
-                    output_str += vocab[v] + "\t";
-            print output_str
+        return lower_bound
+
+    """
+    """
+    def learning(self, iteration=0, directory="../../output/tmp-output"):
+        if iteration <= 0:
+            iteration = self._global_maximum_iteration;
+        
+        for i in xrange(iteration):
+            self.update_nu();
+            self.update_phi();
+            self.update_tau();
+
+        print "learning finished..."
+    
+    """
+    compute the evidence lower bound (i.e. elb) in log scale
+    """
+    def elb(self):
+        log_likelihood = numpy.zeros(5);
+        
+        psi_tau = scipy.special.psi(self._tau);
+        assert(psi_tau.shape==(2, self._K));
+        psi_sum_tau = scipy.special.psi(numpy.sum(self._tau, axis=1)[:, numpy.newaxis]);
+        assert(psi_sum_tau.shape==(1, self._K));
+
+        # entropy of the proposed distribution
+        lngamma_tau = scipy.special.lngamma(self._tau);
+        assert(lngamma_tau.shape==(2, self._K));
+        lngamma_sum_tau = scipy.special.lngamma(numpy.sum(self._tau, axis=1)[:, numpy.newaxis]);
+        assert(lngamma_sum_tau.shape==(1, self._K));
+        
+        log_likelihood[4] = numpy.sum(lngamma_tau[0, :] + lngamma_tau[1, :] - lngamma_sum_tau);
+        log_likelihood[4] -= numpy.sum((self._tau[0, :]-1) * psi_tau[0, :] + (self._tau[1, :]-1) * psi_tau[1, :]);
+        log_likelihood[4] += numpy.sum((self._tau[0, :] + self._tau[1, :] - 2) * psi_sum_tau);
+        
+        assert(numpy.all(self._phi_cov>0));
+        assert(numpy.all(self._nu>0));
+        log_likelihood[4] += 0.5 * numpy.sum((self._D * numpy.log(2 * numpy.pi * numpy.e) + numpy.log(numpy.sqrt(numpy.sum(self._phi_cov * self._phi_cov, axis=1)))));
+        log_likelihood[4] -= numpy.sum(self._nu * numpy.log(self._nu) + (1.-self._nu) * numpy.log(1.-self._nu)));
+
+        if self._finite_mode:
+            log_likelihood[0] = self._K * numpy.log(self._alpha / self._K) + (self._alpha / self._K) * numpy.sum(psi_tau[0, :] - psi_sum_tau);
+            
+            log_likelihood[1] = numpy.sum(self._nu * psi_tau[0, :]) + numpy.sum((1-self._nu) * psi_tau[1, :]) - self._N * numpy.sum(psi_sum_tau);
+            
+            log_likelihood[2] = - 0.5 * self._K * self._D * numpy.log(2 * numpy.pi * self._sigma_f * self._sigma_f);
+            log_likelihood[2] -= 0.5 / (self._sigma_f * self._sigma_f) * (numpy.sum(self._phi_cov) + numpy.sum(self._phi_mean * self._phi_mean));
+            
+            tmp_log_likelihood = numpy.sum(self._X * self._X) - 2 * numpy.sum(numpy.dot(self._nu, self._phi_mean) * self._X)
+            log_likelihood[3] = - 0.5 * self._K * self._D * numpy.log(2 * numpy.pi * self._sigma_n * self._sigma_n);
+            log_likelihood[3] -= 0.5 / (self._sigma_n * self._sigma_n) * (numpy.sum(self._X * self._X)
+                                                                          - 2 * numpy.sum(numpy.dot(self._nu, self._phi_mean) * self._X);
+        else:
+            return;
+
+if __name__ == "__main__":
+    import scipy.io;
+    
+    # load the data from the matrix
+    mat_vals = scipy.io.loadmat('../../data/cambridge-bars/block_image_set.mat');
+    true_weights = mat_vals['trueWeights']
+    features = mat_vals['features']
+    data = mat_vals['data']
+    
+    # initialize the model
+    ibp = VariationalBayes();
+
+    ibp._initialize(data[1:100, :]);
+    
+    ibp.learning(100);
+    
+    # If matplotlib is installed, plot ground truth vs learned factors
+    import matplotlib.pyplot as P
+    from util.scaled_image import scaledimage
+    
+    # Intensity plots of
+    # -ground truth factor-feature weights (top)
+    # -learned factor-feature weights (bottom)
+    K = max(len(true_weights), len(ibp._phi_mean))
+    (fig, subaxes) = P.subplots(2, K)
+    for sa in subaxes.flatten():
+        sa.set_visible(False)
+    fig.suptitle('Ground truth (top) vs learned factors (bottom)')
+    for (idx, trueFactor) in enumerate(true_weights):
+        ax = subaxes[0, idx]
+        ax.set_visible(True)
+        scaledimage(trueFactor.reshape(6, 6),
+                    pixwidth=3, ax=ax)
+    for (idx, learnedFactor) in enumerate(ibp._phi_mean):
+        ax = subaxes[1, idx]
+        scaledimage(learnedFactor.reshape(6, 6),
+                    pixwidth=3, ax=ax)
+        ax.set_visible(True)
+    P.show()

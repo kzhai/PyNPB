@@ -30,8 +30,8 @@ class GibbsSampling(object):
         # a value of None is a gentle way to say "do not sampling _sigma_x"
         assert(sigma_x_hyper_parameter == None or type(sigma_x_hyper_parameter) == tuple);
         self._sigma_x_hyper_parameter = sigma_x_hyper_parameter;
-        # initialize the hyper-parameter for sampling _sigma_f
-        # a value of None is a gentle way to say "do not sampling _sigma_f"
+        # initialize the hyper-parameter for sampling _sigma_a
+        # a value of None is a gentle way to say "do not sampling _sigma_a"
         assert(sigma_a_hyper_parameter == None or type(sigma_a_hyper_parameter) == tuple);
         self._sigma_a_hyper_parameter = sigma_a_hyper_parameter;
         
@@ -53,10 +53,10 @@ class GibbsSampling(object):
     @param initializ_Z: seeded Z matrix
     """
     @abc.abstractmethod
-    def _initialize(self, data, alpha=1.0, sigma_f=1.0, sigma_x=1.0, A_prior=None, initial_Z=None):
+    def _initialize(self, data, alpha=1.0, sigma_a=1.0, sigma_x=1.0, A_prior=None, initial_Z=None):
         self._alpha = alpha;
         self._sigma_x = sigma_x;
-        self._sigma_f = sigma_f;
+        self._sigma_a = sigma_a;
         
         # Data matrix
         #self._X = self.center_data(data);
@@ -220,7 +220,7 @@ class GibbsSampling(object):
             Z = self._Z;
             
         K = Z.shape[1];
-        M = numpy.linalg.inv(numpy.dot(Z.transpose(), Z) + (self._sigma_x / self._sigma_f) ** 2 * numpy.eye(K));
+        M = numpy.linalg.inv(numpy.dot(Z.transpose(), Z) + (self._sigma_x / self._sigma_a) ** 2 * numpy.eye(K));
         return M
 
     """
@@ -249,7 +249,7 @@ class GibbsSampling(object):
         numpy.savetxt(directory + self._a_title + str(index), self._A);
         numpy.savetxt(directory + self._x_title + str(index), self._X);
         numpy.savetxt(directory + self._z_title + str(index), self._Z);
-        vector = numpy.array([self._alpha, self._sigma_f, self._sigma_x]);
+        vector = numpy.array([self._alpha, self._sigma_a, self._sigma_x]);
         numpy.savetxt(directory + self._hyper_parameter_vector_title + str(index), vector);
         print "successfully export the snapshot to " + directory + " for iteration " + str(index) + "..."
 
@@ -266,7 +266,7 @@ class GibbsSampling(object):
         (self._N, self._D) = self._X.shape;
         assert(self._Z.shape[0] == self._X.shape[0]);
         assert(self._A.shape == (self._K, self._D));
-        (self._alpha, self._sigma_f, self._sigma_x) = numpy.loadtxt(directory + self._hyper_parameter_vector_title + str(index));
+        (self._alpha, self._sigma_a, self._sigma_x) = numpy.loadtxt(directory + self._hyper_parameter_vector_title + str(index));
         print "successfully import the snapshot from " + directory + " for iteration " + str(index) + "..."
     
     """

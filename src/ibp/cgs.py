@@ -21,8 +21,8 @@ class CollapsedGibbsSampling(GibbsSampling):
     @param sigma_a: standard derivation of the feature, often referred as sigma_f as well
     @param initializ_Z: seeded Z matrix
     """
-    def _initialize(self, data, alpha=1.0, sigma_f=1.0, sigma_x=1.0, A_prior=None, initial_Z=None):
-        super(CollapsedGibbsSampling, self)._initialize(self.center_data(data), alpha, sigma_f, sigma_x, initial_Z);
+    def _initialize(self, data, alpha=1.0, sigma_a=1.0, sigma_x=1.0, A_prior=None, initial_Z=None):
+        super(CollapsedGibbsSampling, self)._initialize(self.center_data(data), alpha, sigma_a, sigma_x, initial_Z);
 
         if A_prior == None:
             self._A_prior = numpy.zeros((1, self._D));
@@ -78,10 +78,10 @@ class CollapsedGibbsSampling(GibbsSampling):
                 self._sigma_x = self.sample_sigma_x(self._sigma_x_hyper_parameter);
             
             if self._sigma_a_hyper_parameter != None:
-                self._sigma_f = self.sample_sigma_a(self._sigma_a_hyper_parameter);
+                self._sigma_a = self.sample_sigma_a(self._sigma_a_hyper_parameter);
                 
             print("iteration: %i\tK: %i\tlikelihood: %f" % (iter, self._K, self.log_likelihood_model()));
-            print("alpha: %f\tsigma_a: %f\tsigma_x: %f" % (self._alpha, self._sigma_f, self._sigma_x));
+            print("alpha: %f\tsigma_a: %f\tsigma_x: %f" % (self._alpha, self._sigma_a, self._sigma_x));
             
             if (iter + 1) % self._snapshot_interval == 0:
                 self.export_snapshot(directory, iter + 1);
@@ -177,8 +177,8 @@ class CollapsedGibbsSampling(GibbsSampling):
         Z_new[[object_index], singleton_features] = 0;
 
         # construct M_new
-        M_i_new = numpy.vstack((numpy.hstack((M_i, numpy.zeros((self._K, K_temp)))), numpy.hstack((numpy.zeros((K_temp, self._K)), (self._sigma_f / self._sigma_x) ** 2 * numpy.eye(K_temp)))));
-        log_det_M_i_new = log_det_M_i + 2 * K_temp * numpy.log(self._sigma_f / self._sigma_x);
+        M_i_new = numpy.vstack((numpy.hstack((M_i, numpy.zeros((self._K, K_temp)))), numpy.hstack((numpy.zeros((K_temp, self._K)), (self._sigma_a / self._sigma_x) ** 2 * numpy.eye(K_temp)))));
+        log_det_M_i_new = log_det_M_i + 2 * K_temp * numpy.log(self._sigma_a / self._sigma_x);
         ziMi = numpy.dot(Z_new[[object_index], :], M_i_new);
         ziMizi = numpy.dot(ziMi, Z_new[[object_index], :].transpose());
         M_new = M_i_new - numpy.dot(ziMi.transpose(), ziMi) / (ziMizi + 1);
@@ -244,7 +244,7 @@ class CollapsedGibbsSampling(GibbsSampling):
         # be careful that M passed in should include the inverse.
         log_likelihood = numpy.eye(N) - numpy.dot(numpy.dot(Z, M), Z.transpose());
         log_likelihood = -0.5 / (self._sigma_x ** 2) * numpy.trace(numpy.dot(numpy.dot(self._X.transpose(), log_likelihood), self._X));
-        log_likelihood -= D * (N - K) * numpy.log(self._sigma_x) + K * D * numpy.log(self._sigma_f);
+        log_likelihood -= D * (N - K) * numpy.log(self._sigma_x) + K * D * numpy.log(self._sigma_a);
         log_likelihood += 0.5 * D * log_det_M;
         log_likelihood -= 0.5 * N * D * numpy.log(2 * numpy.pi);
         

@@ -66,10 +66,10 @@ class UncollapsedGibbsSampling(GibbsSampling):
                 self._sigma_x = self.sample_sigma_x(self._sigma_x_hyper_parameter);
             
             if self._sigma_a_hyper_parameter != None:
-                self._sigma_f = self.sample_sigma_a(self._sigma_a_hyper_parameter);
+                self._sigma_a = self.sample_sigma_a(self._sigma_a_hyper_parameter);
                 
             print("iteration: %i\tK: %i\tlikelihood: %f" % (iter, self._K, self.log_likelihood_model()));
-            print("alpha: %f\tsigma_a: %f\tsigma_x: %f" % (self._alpha, self._sigma_f, self._sigma_x));
+            print("alpha: %f\tsigma_a: %f\tsigma_x: %f" % (self._alpha, self._sigma_a, self._sigma_x));
             
             if (iter + 1) % self._snapshot_interval == 0:
                 self.export_snapshot(directory, iter + 1);
@@ -134,7 +134,7 @@ class UncollapsedGibbsSampling(GibbsSampling):
 
         # generate new features from a normal distribution with mean 0 and variance sigma_a, a K_new-by-D matrix
         A_prior = numpy.tile(self._A_prior, (K_temp, 1));
-        A_temp = numpy.random.normal(0, self._sigma_f, (K_temp, self._D)) + A_prior;
+        A_temp = numpy.random.normal(0, self._sigma_a, (K_temp, self._D)) + A_prior;
         A_new = numpy.vstack((self._A[[k for k in xrange(self._K) if k not in singleton_features], :], A_temp));
         # generate new z matrix row
         #print K_temp, object_index, [k for k in xrange(self._K) if k not in singleton_features], self._Z[[object_index], [k for k in xrange(self._K) if k not in singleton_features]].shape, numpy.ones((len(object_index), K_temp)).shape
@@ -212,7 +212,7 @@ class UncollapsedGibbsSampling(GibbsSampling):
         # compute M = (Z' * Z - (sigma_x^2) / (sigma_a^2) * I)^-1
         M = self.compute_M();
         # compute the mean of the matrix A
-        mean_A = numpy.dot(M, numpy.dot(self._Z.transpose(), X) + (self._sigma_x / self._sigma_f) ** 2 * A_prior);
+        mean_A = numpy.dot(M, numpy.dot(self._Z.transpose(), X) + (self._sigma_x / self._sigma_a) ** 2 * A_prior);
         # compute the co-variance of the matrix A
         std_dev_A = numpy.linalg.cholesky(self._sigma_x ** 2 * M).transpose();
         
@@ -272,11 +272,11 @@ class UncollapsedGibbsSampling(GibbsSampling):
     compute the log-likelihood of A
     """
     def log_likelihood_A(self):
-        log_likelihood = -0.5 * self._K * self._D * numpy.log(2 * numpy.pi * self._sigma_f * self._sigma_f);
+        log_likelihood = -0.5 * self._K * self._D * numpy.log(2 * numpy.pi * self._sigma_a * self._sigma_a);
         #for k in range(self._K):
         #    A_prior[k, :] = self._mean_a[0, :];
         A_prior = numpy.tile(self._A_prior, (self._K, 1))
-        log_likelihood -= numpy.trace(numpy.dot((self._A - A_prior).transpose(), (self._A - A_prior))) * 0.5 / (self._sigma_f ** 2);
+        log_likelihood -= numpy.trace(numpy.dot((self._A - A_prior).transpose(), (self._A - A_prior))) * 0.5 / (self._sigma_a ** 2);
         
         return log_likelihood;
     
