@@ -20,9 +20,9 @@ class SemicollapsedGibbsSampling(GibbsSampling):
     @param sigma_a: standard derivation of the feature, often referred as sigma_f as well
     @param initializ_Z: seeded Z matrix
     """
-    def _initialize(self, data, alpha=1.0, sigma_a=1.0, sigma_x=1.0, initial_Z=None, A_prior=None, initial_A=None):
+    def _initialize(self, data, alpha=1.0, sigma_f=1.0, sigma_x=1.0, initial_Z=None, A_prior=None, initial_A=None):
         # Data matrix
-        super(SemicollapsedGibbsSampling, self)._initialize(self.center_data(data), alpha, sigma_a, sigma_x, A_prior, initial_Z);
+        super(SemicollapsedGibbsSampling, self)._initialize(self.center_data(data), alpha, sigma_f, sigma_x, A_prior, initial_Z);
 
         if initial_A != None:
             # this will replace the A matrix generated in the super class. 
@@ -62,10 +62,10 @@ class SemicollapsedGibbsSampling(GibbsSampling):
                 self._sigma_x = self.sample_sigma_x(self._sigma_x_hyper_parameter);
             
             if self._sigma_a_hyper_parameter != None:
-                self._sigma_a = self.sample_sigma_a(self._sigma_a_hyper_parameter);
+                self._sigma_f = self.sample_sigma_a(self._sigma_a_hyper_parameter);
                 
             print("iteration: %i\tK: %i\tlikelihood: %f" % (iter, self._K, self.log_likelihood_model()));
-            print("alpha: %f\tsigma_a: %f\tsigma_x: %f" % (self._alpha, self._sigma_a, self._sigma_x));
+            print("alpha: %f\tsigma_a: %f\tsigma_x: %f" % (self._alpha, self._sigma_f, self._sigma_x));
             
             if (iter + 1) % self._snapshot_interval == 0:
                 self.export_snapshot(directory, iter + 1);
@@ -135,8 +135,8 @@ class SemicollapsedGibbsSampling(GibbsSampling):
 
         log_new_old = 0;
         for d in xrange(self._D):
-            log_new_old -= 0.5 * numpy.log((self._sigma_x ** 2 + K_new * self._sigma_a ** 2) / (self._sigma_x ** 2 + K_old * self._sigma_a ** 2));
-            log_new_old -= 0.5 * X_residue[0, d] ** 2 * (1 / (self._sigma_x ** 2 + K_new * self._sigma_a ** 2) - 1 / (self._sigma_x ** 2 + K_old * self._sigma_a ** 2));
+            log_new_old -= 0.5 * numpy.log((self._sigma_x ** 2 + K_new * self._sigma_f ** 2) / (self._sigma_x ** 2 + K_old * self._sigma_f ** 2));
+            log_new_old -= 0.5 * X_residue[0, d] ** 2 * (1 / (self._sigma_x ** 2 + K_new * self._sigma_f ** 2) - 1 / (self._sigma_x ** 2 + K_old * self._sigma_f ** 2));
             
         accept_new = 1.0 / (1.0 + 1.0 / numpy.exp(log_new_old));
 
@@ -149,7 +149,7 @@ class SemicollapsedGibbsSampling(GibbsSampling):
         log_likelihood_old = -numpy.trace(numpy.dot(numpy.dot(X_residue.transpose(), log_likelihood_old), X_residue));
         log_likelihood_old /= (2 * self._sigma_x**2);
         log_likelihood_old += self._D / 2 * numpy.linalg.det(M_old);
-        log_likelihood_old -= (1-K_old)*self._D * numpy.log(self._sigma_x) + (K_old*self._D) * numpy.log(self._sigma_a);
+        log_likelihood_old -= (1-K_old)*self._D * numpy.log(self._sigma_x) + (K_old*self._D) * numpy.log(self._sigma_f);
         
         # compute the log likelihood if we use new features
         Z_i_new = numpy.ones((1, K_new));
@@ -159,7 +159,7 @@ class SemicollapsedGibbsSampling(GibbsSampling):
         log_likelihood_new = -numpy.trace(numpy.dot(numpy.dot(X_residue.transpose(), log_likelihood_new), X_residue));
         log_likelihood_new /= (2 * self._sigma_x**2);
         log_likelihood_new += self._D / 2 * numpy.linalg.det(M_new);
-        log_likelihood_new -= (1-K_new)*self._D * numpy.log(self._sigma_x) + (K_new*self._D) * numpy.log(self._sigma_a);
+        log_likelihood_new -= (1-K_new)*self._D * numpy.log(self._sigma_x) + (K_new*self._D) * numpy.log(self._sigma_f);
         
         # compute the probability of accepting new features                
         accept_new = 1.0/(1.0 + numpy.exp(log_likelihood_old-log_likelihood_new));
@@ -228,7 +228,7 @@ class SemicollapsedGibbsSampling(GibbsSampling):
         # compute M = (Z' * Z - (sigma_x^2) / (sigma_a^2) * I)^-1
         M = self.compute_M();
         # compute the mean of the matrix A
-        mean_A = numpy.dot(M, numpy.dot(self._Z.transpose(), X) + (self._sigma_x / self._sigma_a) ** 2 * A_prior);
+        mean_A = numpy.dot(M, numpy.dot(self._Z.transpose(), X) + (self._sigma_x / self._sigma_f) ** 2 * A_prior);
         # compute the co-variance of the matrix A
         std_dev_A = numpy.linalg.cholesky(self._sigma_x ** 2 * M).transpose();
         
@@ -288,11 +288,11 @@ class SemicollapsedGibbsSampling(GibbsSampling):
     compute the log-likelihood of A
     """
     def log_likelihood_A(self):
-        log_likelihood = -0.5 * self._K * self._D * numpy.log(2 * numpy.pi * self._sigma_a * self._sigma_a);
+        log_likelihood = -0.5 * self._K * self._D * numpy.log(2 * numpy.pi * self._sigma_f * self._sigma_f);
         #for k in range(self._K):
         #    A_prior[k, :] = self._mean_a[0, :];
         A_prior = numpy.tile(self._A_prior, (self._K, 1))
-        log_likelihood -= numpy.trace(numpy.dot((self._A - A_prior).transpose(), (self._A - A_prior))) * 0.5 / (self._sigma_a ** 2);
+        log_likelihood -= numpy.trace(numpy.dot((self._A - A_prior).transpose(), (self._A - A_prior))) * 0.5 / (self._sigma_f ** 2);
         
         return log_likelihood;
     
