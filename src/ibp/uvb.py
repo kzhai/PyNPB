@@ -11,9 +11,6 @@ import numpy, scipy;
 """
 class VariationalBayes(object):
     __metaclass__ = abc.ABCMeta;
-
-
-        
     """
     @param num_topics: the number of topics
     @param data: a defaultdict(dict) data type, first indexed by doc id then indexed by term id
