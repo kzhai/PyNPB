@@ -30,7 +30,7 @@ class VariationalBayes(object):
     @param data: 
     take note: words are not terms, they are repeatable and thus might be not unique
     """
-    def _initialize(self, data, truncation_level=5, phi_mean=None, alpha=1., sigma_a=1., sigma_x=1.):
+    def _initialize(self, data, truncation_level=5, alpha=1., sigma_a=1., sigma_x=1.):
         self._X = data;
         (self._N, self._D) = self._X.shape;
 
@@ -55,12 +55,8 @@ class VariationalBayes(object):
         assert(self._nu.shape==(self._N, self._K));
 
         # phi
-        if phi_mean!=None:
-            self._phi_mean = phi_mean;
-            self._phi_cov = numpy.ones(self._phi_mean.shape);
-        else:
-            self._phi_mean = numpy.random.normal(0., 1., (self._K, self._D)) * 0.01;
-            self._phi_cov = numpy.random.normal(0., 1., (self._K, self._D)) ** 2 * 0.1;
+        self._phi_mean = numpy.random.normal(0., 1., (self._K, self._D)) * 0.01;
+        self._phi_cov = numpy.random.normal(0., 1., (self._K, self._D)) ** 2 * 0.1;
         assert(self._phi_mean.shape==(self._K, self._D));
         assert(self._phi_cov.shape==(self._K, self._D));
 
@@ -117,21 +113,26 @@ class VariationalBayes(object):
             self._tau[1, :] = 1. + self._N - sum_nu;
         else:
             N_minus_sum_nu = self._N - sum_nu;
-            psi_tau = scipy.special.psi(self._tau);
-            assert(psi_tau.shape == (2, self._K));
-            psi_sum_tau = scipy.special.psi(numpy.sum(self._tau, axis=0));
-            assert(len(psi_tau.shape) == self._K);
-            psi_tau0_cumsum = numpy.hstack([0, numpy.cumsum(psi_tau[0, :])]);
-            assert(len(psi_tau0_cumsum) == self._K + 1);
-            psi_sum_cumsum = numpy.cumsum(psi_sum_tau);
-            assert(len(psi_sum_cumsum) == self._K);
-            exponent = psi_tau[1, :] + psi_tau_cumsum - psi_sum_cumsum;
-            unnormalized = numpy.exp(exponent - numpy.max(exponent));
-            assert(len(unnormalized) == self._K);
             for k in xrange(self._K):
+                psi_tau = scipy.special.psi(self._tau);
+                assert(psi_tau.shape == (2, self._K));
+                
+                psi_sum_tau = scipy.special.psi(numpy.sum(self._tau, axis=0));
+                assert(len(psi_sum_tau) == self._K);
+                
+                psi_tau0_cumsum = numpy.hstack([0, numpy.cumsum(psi_tau[0, :-1])]);
+                assert(len(psi_tau0_cumsum) == self._K);
+                
+                psi_sum_cumsum = numpy.cumsum(psi_sum_tau);
+                assert(len(psi_sum_cumsum) == self._K);
+                
+                exponent = psi_tau[1, :] + psi_tau0_cumsum - psi_sum_cumsum;
+                unnormalized = numpy.exp(exponent - numpy.max(exponent));
+                assert(len(unnormalized) == self._K);
+                
                 qs = numpy.zeros((self._K, self._K));
                 for m in xrange(k, self._K):
-                    qs[m, 0:m] = unnormalized[0:m] / numpy.sum(unnormalized[0:m]);
+                    qs[m, 0:m+1] = unnormalized[0:m+1] / numpy.sum(unnormalized[0:m+1]);
                 
                 self._tau[0, k] = numpy.sum(sum_nu[k:self._K]) + numpy.dot(N_minus_sum_nu[k + 1:self._K], numpy.sum(qs[k + 1:self._K, k + 1:self._K], axis=1)) + self._alpha;
                 self._tau[1, k] = numpy.dot(N_minus_sum_nu[k:self._K], qs[k:self._K, k]) + 1;
@@ -155,21 +156,28 @@ class VariationalBayes(object):
     def compute_expected_pzk0_qjensen(self, k):
         assert(k >= 0 and k < self._K);
         tau = self._tau[:, 0:k + 1];
-        assert(tau.shape == (2, k));
+        assert(tau.shape == (2, k+1));
+
         psi_tau = scipy.special.psi(tau);
-        assert(psi_tau.shape == (2, k));
+        assert(psi_tau.shape == (2, k+1));
+
         psi_sum_tau = scipy.special.psi(numpy.sum(tau, axis=0));
-        assert(len(psi_tau.shape) == k);
-        psi_tau0_cumsum = numpy.hstack([0, numpy.cumsum(psi_tau[0, :])]);
+        assert(len(psi_sum_tau) == k + 1);
+
+        psi_tau0_cumsum = numpy.hstack([0, numpy.cumsum(psi_tau[0, :-1])]);
         assert(len(psi_tau0_cumsum) == k + 1);
+
         psi_sum_cumsum = numpy.cumsum(psi_sum_tau);
-        assert(len(psi_sum_cumsum) == k);
-        tmp = psi_tau[1, :] + psi_tau0_cumsumd[0:k] - psi_sum_cumsum;
-        assert(len(tmp) == k);
+        assert(len(psi_sum_cumsum) == k + 1);
+
+        tmp = psi_tau[1, :] + psi_tau0_cumsum - psi_sum_cumsum;
+        assert(len(tmp) == k + 1);
+        
         q = numpy.exp(tmp - numpy.max(tmp));
-        assert(len(q) == k);
+        assert(len(q) == k+1);
+        
         q = q / numpy.sum(q);
-        assert(len(q) == k);
+        assert(len(q) == k+1);
 
         # compute the lower bound
         lower_bound = numpy.sum(q * (tmp - numpy.log(q)));
@@ -182,6 +190,8 @@ class VariationalBayes(object):
         if iteration <= 0:
             iteration = self._global_maximum_iteration;
 
+        print "likelihood is", self.velb();
+        
         for i in xrange(iteration):
             self.update_tau();
             self.update_phi();
@@ -201,6 +211,34 @@ class VariationalBayes(object):
         psi_sum_tau = scipy.special.psi(numpy.sum(self._tau, axis=0)[numpy.newaxis, :]);
         assert(psi_sum_tau.shape == (1, self._K));
 
+        if self._finite_mode:
+            # compute the probability of feature
+            log_likelihood[0] = self._K * numpy.log(self._alpha / self._K) + (self._alpha / self._K - 1.) * numpy.sum(psi_tau[0, :] - psi_sum_tau);
+            # compute the probability of feature statistics
+            log_likelihood[1] = numpy.sum(self._nu * psi_tau[0, :]) + numpy.sum((1. - self._nu) * psi_tau[1, :]) - self._N * numpy.sum(psi_sum_tau);
+        else:
+            # compute the probability of feature
+            log_likelihood[0] = self._K * numpy.log(self._alpha) + (self._alpha - 1.) * numpy.sum(psi_tau[0, :] - psi_sum_tau);
+            # compute the probability of feature statistics
+            for k in xrange(self._K):
+                log_likelihood[1] += numpy.sum(self._nu[:, k]) * numpy.sum(psi_tau[0, :k+1] - psi_sum_tau[0, :k+1]);
+                log_likelihood[1] += numpy.dot((self._N - numpy.sum(self._nu[:, k])), self.compute_expected_pzk0_qjensen(k));
+            
+        # compute the probability of feature distribution
+        log_likelihood[2] = -0.5 * self._K * self._D * numpy.log(2 * numpy.pi * self._sigma_a * self._sigma_a);
+        log_likelihood[2] -= 0.5 / (self._sigma_a * self._sigma_a) * (numpy.sum(self._phi_cov) + numpy.sum(self._phi_mean * self._phi_mean));
+        
+        # compute the probability of data likelihood
+        tmp_log_likelihood = numpy.sum(self._X * self._X) - 2 * numpy.sum(self._nu * numpy.dot(self._X, self._phi_mean.transpose()));
+        tmp_1 = numpy.dot(numpy.ones((self._N, self._D)), (self._phi_cov + self._phi_mean**2).transpose());
+        tmp_log_likelihood += numpy.sum(self._nu * tmp_1);
+        tmp_1 = numpy.dot(self._nu, self._phi_mean);
+        tmp_2 = numpy.sum(numpy.dot(self._nu ** 2, self._phi_mean ** 2));
+        tmp_log_likelihood += numpy.sum(tmp_1 * tmp_1) - numpy.sum(tmp_2);
+        
+        log_likelihood[3] = -0.5 * self._N * self._D * numpy.log(2 * numpy.pi * self._sigma_x * self._sigma_x);
+        log_likelihood[3] -= 0.5 / (self._sigma_x * self._sigma_x) * tmp_log_likelihood
+        
         # entropy of the proposed distribution
         lngamma_tau = scipy.special.gammaln(self._tau);
         assert(lngamma_tau.shape == (2, self._K));
@@ -218,30 +256,6 @@ class VariationalBayes(object):
         log_likelihood[4] += 0.5 * numpy.sum(numpy.log(self._phi_cov));
         #log_likelihood[4] += 0.5 * numpy.log(numpy.sqrt(numpy.sum(self._phi_cov * self._phi_cov, axis=1)));
         log_likelihood[4] -= numpy.sum(self._nu * numpy.log(self._nu) + (1. - self._nu) * numpy.log(1. - self._nu));
-
-        if self._finite_mode:
-            # compute the probability of feature
-            log_likelihood[0] = self._K * numpy.log(self._alpha / self._K) + (self._alpha / self._K - 1.) * numpy.sum(psi_tau[0, :] - psi_sum_tau);
-            # compute the probability of feature statistics
-            log_likelihood[1] = numpy.sum(self._nu * psi_tau[0, :]) + numpy.sum((1. - self._nu) * psi_tau[1, :]) - self._N * numpy.sum(psi_sum_tau);
-            # compute the probability of feature distribution
-            log_likelihood[2] = -0.5 * self._K * self._D * numpy.log(2 * numpy.pi * self._sigma_a * self._sigma_a);
-            log_likelihood[2] -= 0.5 / (self._sigma_a * self._sigma_a) * (numpy.sum(self._phi_cov) + numpy.sum(self._phi_mean * self._phi_mean));
-            
-            # compute the probability of data likelihood
-            tmp_log_likelihood = numpy.sum(self._X * self._X) - 2 * numpy.sum(self._nu * numpy.dot(self._X, self._phi_mean.transpose()));
-            
-            tmp_1 = numpy.dot(numpy.ones((self._N, self._D)), (self._phi_cov + self._phi_mean**2).transpose());
-            tmp_log_likelihood += numpy.sum(self._nu * tmp_1);
-            
-            tmp_1 = numpy.dot(self._nu, self._phi_mean);
-            tmp_2 = numpy.sum(numpy.dot(self._nu ** 2, self._phi_mean ** 2));
-            tmp_log_likelihood += numpy.sum(tmp_1 * tmp_1) - numpy.sum(tmp_2);
-            
-            log_likelihood[3] = -0.5 * self._N * self._D * numpy.log(2 * numpy.pi * self._sigma_x * self._sigma_x);
-            log_likelihood[3] -= 0.5 / (self._sigma_x * self._sigma_x) * tmp_log_likelihood
-        else:
-            return;
         
         return numpy.sum(log_likelihood);
 
