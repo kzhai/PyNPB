@@ -4,7 +4,7 @@ import scipy.special;
 """
 @author: Ke Zhai (zhaike@cs.umd.edu)
 
-This is a python implementation of vanilla ibp, based on variational inference.
+This is a python implementation of vanilla Indian Buffet process, based on variational inference.
 
 References:
 [1] Finale Doshi-Velez, Kurt T. Miller, Jurgen Van Gael, and Yee Whye Teh, Variational Inference for the Indian Buffet Process, Artificial Intelligence and Statistics (AISTATS), 2009.
