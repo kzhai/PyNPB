@@ -27,11 +27,10 @@ class VariationalBayes(object):
         self._snapshot_interval = snapshot_interval;
     
     """
-    @param num_topics: the number of topics
-    @param data: a defaultdict(dict) data type, first indexed by doc id then indexed by term id
+    @param data: 
     take note: words are not terms, they are repeatable and thus might be not unique
     """
-    def _initialize(self, data, truncation_level=5, alpha=1., sigma_a=1., sigma_x=1.):
+    def _initialize(self, data, truncation_level=5, phi_mean=None, alpha=1., sigma_a=1., sigma_x=1.):
         self._X = data;
         (self._N, self._D) = self._X.shape;
 
@@ -49,31 +48,40 @@ class VariationalBayes(object):
         else:
             self._tau[0, :] = self._alpha;
             self._tau += 0.5 * numpy.min(1., self._alpha) * (numpy.random.random(self._tau.shape) - 0.5);
+        assert(self._tau.shape==(2, self._K));
+            
         # nu
         self._nu = numpy.random.random((self._N, self._K));
-        # mean
-        self._phi_mean = numpy.random.normal(0., 1., (self._K, self._D)) * 0.01;
-        # covariance
-        self._phi_cov = numpy.random.normal(0., 1., (self._K, self._D)) ** 2 * 0.1;
+        assert(self._nu.shape==(self._N, self._K));
+
+        # phi
+        if phi_mean!=None:
+            self._phi_mean = phi_mean;
+            self._phi_cov = numpy.ones(self._phi_mean.shape);
+        else:
+            self._phi_mean = numpy.random.normal(0., 1., (self._K, self._D)) * 0.01;
+            self._phi_cov = numpy.random.normal(0., 1., (self._K, self._D)) ** 2 * 0.1;
+        assert(self._phi_mean.shape==(self._K, self._D));
+        assert(self._phi_cov.shape==(self._K, self._D));
 
     """
     """
     def update_phi(self):
-        nu_sum = numpy.sum(self._nu, axis=0);
-        assert(len(nu_sum) == self._K);
+        nu_sum_n = numpy.sum(self._nu, axis=0);
+        assert(len(nu_sum_n) == self._K);
+        nu_sum_k = numpy.sum(self._nu, axis=1);
+        assert(len(nu_sum_k) == self._N);
         for k in numpy.random.permutation(xrange(self._K)):
             # we assume the covariance matrix is a diagonal matrix and we only store the diagonal terms
-            self._phi_cov[k, :] = 1. / (1. / (self._sigma_a * self._sigma_a) + nu_sum[k] / (self._sigma_x * self._sigma_x));
+            self._phi_cov[k, :] = 1. / (1. / (self._sigma_a * self._sigma_a) + nu_sum_n[k] / (self._sigma_x * self._sigma_x));
 
-            phi_mean = numpy.dot(self._X.transpose(), self._nu[:, k][:, numpy.newaxis]).transpose();
-            assert(phi_mean.shape == (1, self._D));
-            
             tmp_nu = numpy.delete(self._nu, k, 1);
             assert(tmp_nu.shape==(self._N, self._K-1));
             tmp_phi_mean = numpy.delete(self._phi_mean, k, 0);
             assert(tmp_phi_mean.shape==(self._K-1, self._D));
+            phi_mean = numpy.dot(self._X.transpose(), self._nu[:, k][:, numpy.newaxis]).transpose();
             for n in xrange(self._N):
-                phi_mean -= self._nu[n, k] * numpy.sum(tmp_nu[n, :] * tmp_phi_mean.transpose(), axis=1);
+                phi_mean -= self._nu[n, k] * numpy.sum(tmp_nu[n, :] * tmp_phi_mean.transpose(), axis=1)[:, numpy.newaxis].transpose();
             assert(phi_mean.shape == (1, self._D));
             phi_mean /= self._sigma_x * self._sigma_x;
             self._phi_mean[k, :] = phi_mean * self._phi_cov[k, :];
@@ -96,12 +104,13 @@ class VariationalBayes(object):
                 var_theta = var_theta_constant[k] + 1. / (self._sigma_x * self._sigma_x) * numpy.dot(self._phi_mean[k, :][numpy.newaxis, :], x_nu_phi.transpose());
                 self._nu[n, k] = 1. / (1. + numpy.exp(-var_theta));
                 
-        return
+        return;
     
     """
     """
     def update_tau(self):
         sum_nu = numpy.sum(self._nu, axis=0);
+        assert(len(sum_nu)==self._K);
         if self._finite_mode:
             assert(len(sum_nu) == self._K);
             self._tau[0, :] = self._alpha / self._K + sum_nu;
@@ -172,16 +181,13 @@ class VariationalBayes(object):
     def learning(self, iteration=0, directory="../../output/tmp-output"):
         if iteration <= 0:
             iteration = self._global_maximum_iteration;
-        
-        for i in xrange(iteration):
-            self.update_nu();
-            print "after update nu", self.velb();
-            self.update_phi();
-            print "after update phi", self.velb();
-            self.update_tau();
-            print "after update tau", self.velb();
-            #print "likelihood is", self.velb();
 
+        for i in xrange(iteration):
+            self.update_tau();
+            self.update_phi();
+            self.update_nu();
+            print "likelihood is", self.velb()
+            
         print "learning finished..."
     
     """
@@ -201,31 +207,39 @@ class VariationalBayes(object):
         lngamma_sum_tau = scipy.special.gammaln(numpy.sum(self._tau, axis=0)[numpy.newaxis, :]);
         assert(lngamma_sum_tau.shape == (1, self._K));
         
+        # compute the entropy of the distribution
         log_likelihood[4] = numpy.sum(lngamma_tau[0, :] + lngamma_tau[1, :] - lngamma_sum_tau);
         log_likelihood[4] -= numpy.sum((self._tau[0, :] - 1) * psi_tau[0, :] + (self._tau[1, :] - 1) * psi_tau[1, :]);
         log_likelihood[4] += numpy.sum((self._tau[0, :] + self._tau[1, :] - 2) * psi_sum_tau);
         
         assert(numpy.all(self._phi_cov > 0));
-        assert(numpy.all(self._nu > 0));
-        log_likelihood[4] += 0.5 * numpy.sum((self._D * numpy.log(2 * numpy.pi * numpy.e) + numpy.log(numpy.sqrt(numpy.sum(self._phi_cov * self._phi_cov, axis=1)))));
+        assert(numpy.all(self._nu >= 0) and numpy.all(self._nu <= 1));
+        log_likelihood[4] += 0.5 * self._K * self._D * numpy.log(2 * numpy.pi * numpy.e);
+        log_likelihood[4] += 0.5 * numpy.sum(numpy.log(self._phi_cov));
+        #log_likelihood[4] += 0.5 * numpy.log(numpy.sqrt(numpy.sum(self._phi_cov * self._phi_cov, axis=1)));
         log_likelihood[4] -= numpy.sum(self._nu * numpy.log(self._nu) + (1. - self._nu) * numpy.log(1. - self._nu));
 
         if self._finite_mode:
-            log_likelihood[0] = self._K * numpy.log(self._alpha / self._K) + (self._alpha / self._K) * numpy.sum(psi_tau[0, :] - psi_sum_tau);
-            
-            log_likelihood[1] = numpy.sum(self._nu * psi_tau[0, :]) + numpy.sum((1 - self._nu) * psi_tau[1, :]) - self._N * numpy.sum(psi_sum_tau);
-            
+            # compute the probability of feature
+            log_likelihood[0] = self._K * numpy.log(self._alpha / self._K) + (self._alpha / self._K - 1.) * numpy.sum(psi_tau[0, :] - psi_sum_tau);
+            # compute the probability of feature statistics
+            log_likelihood[1] = numpy.sum(self._nu * psi_tau[0, :]) + numpy.sum((1. - self._nu) * psi_tau[1, :]) - self._N * numpy.sum(psi_sum_tau);
+            # compute the probability of feature distribution
             log_likelihood[2] = -0.5 * self._K * self._D * numpy.log(2 * numpy.pi * self._sigma_a * self._sigma_a);
             log_likelihood[2] -= 0.5 / (self._sigma_a * self._sigma_a) * (numpy.sum(self._phi_cov) + numpy.sum(self._phi_mean * self._phi_mean));
             
-            tmp_log_likelihood = numpy.sum(self._X * self._X) - 2 * numpy.sum(numpy.dot(self._nu, self._phi_mean) * self._X);
-            tmp_term = numpy.dot(self._nu, self._phi_mean);
-            tmp_log_likelihood += numpy.sum(numpy.dot(self._nu ** 2, self._phi_mean ** 2)) - numpy.sum(tmp_term * tmp_term);
-            tmp_term = numpy.dot(numpy.ones(self._X.shape), (self._phi_cov + self._phi_mean ** 2).transpose());
-            assert(tmp_term.shape==(self._N, self._K));
-            tmp_log_likelihood += numpy.sum(self._nu * tmp_term);
-            log_likelihood[3] = -0.5 * self._K * self._D * numpy.log(2 * numpy.pi * self._sigma_x * self._sigma_x);
-            log_likelihood[3] -= 0.5 / (self._sigma_x * self._sigma_x) * (tmp_log_likelihood);
+            # compute the probability of data likelihood
+            tmp_log_likelihood = numpy.sum(self._X * self._X) - 2 * numpy.sum(self._nu * numpy.dot(self._X, self._phi_mean.transpose()));
+            
+            tmp_1 = numpy.dot(numpy.ones((self._N, self._D)), (self._phi_cov + self._phi_mean**2).transpose());
+            tmp_log_likelihood += numpy.sum(self._nu * tmp_1);
+            
+            tmp_1 = numpy.dot(self._nu, self._phi_mean);
+            tmp_2 = numpy.sum(numpy.dot(self._nu ** 2, self._phi_mean ** 2));
+            tmp_log_likelihood += numpy.sum(tmp_1 * tmp_1) - numpy.sum(tmp_2);
+            
+            log_likelihood[3] = -0.5 * self._N * self._D * numpy.log(2 * numpy.pi * self._sigma_x * self._sigma_x);
+            log_likelihood[3] -= 0.5 / (self._sigma_x * self._sigma_x) * tmp_log_likelihood
         else:
             return;
         
@@ -233,6 +247,7 @@ class VariationalBayes(object):
 
 if __name__ == "__main__":
     import scipy.io;
+    import numpy;
     
     # load the data from the matrix
     mat_vals = scipy.io.loadmat('../../data/cambridge-bars/block_image_set.mat');
@@ -242,7 +257,8 @@ if __name__ == "__main__":
     
     # initialize the model
     ibp = VariationalBayes();
-    ibp._initialize(data[1:10, :]);
+    #ibp._initialize(data[1:10, :], 4, true_weights, 1., 1., 1.);
+    ibp._initialize(data[1:10, :])
     ibp.learning(10);
     
     # If matplotlib is installed, plot ground truth vs learned factors
