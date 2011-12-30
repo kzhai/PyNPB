@@ -267,7 +267,7 @@ if __name__ == "__main__":
     data = mat_vals['data']
     
     # initialize the model
-    ibp = VariationalBayes();
+    ibp = VariationalBayes(10, False, 0.00001, 100)
     #ibp._initialize(data[1:10, :], 4, true_weights, 1., 1., 1.);
     ibp._initialize(data[1:10, :])
     ibp.learning(10);
