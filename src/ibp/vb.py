@@ -45,17 +45,17 @@ class VariationalBayes(object):
         else:
             self._tau[0, :] = self._alpha;
             self._tau += 0.5 * numpy.min(1., self._alpha) * (numpy.random.random(self._tau.shape) - 0.5);
-        assert(self._tau.shape==(2, self._K));
+        assert(self._tau.shape == (2, self._K));
             
         # nu
         self._nu = numpy.random.random((self._N, self._K));
-        assert(self._nu.shape==(self._N, self._K));
+        assert(self._nu.shape == (self._N, self._K));
 
         # phi
         self._phi_mean = numpy.random.normal(0., 1., (self._K, self._D)) * 0.01;
         self._phi_cov = numpy.random.normal(0., 1., (self._K, self._D)) ** 2 * 0.1;
-        assert(self._phi_mean.shape==(self._K, self._D));
-        assert(self._phi_cov.shape==(self._K, self._D));
+        assert(self._phi_mean.shape == (self._K, self._D));
+        assert(self._phi_cov.shape == (self._K, self._D));
 
     """
     """
@@ -69,9 +69,9 @@ class VariationalBayes(object):
             self._phi_cov[k, :] = 1. / (1. / (self._sigma_a * self._sigma_a) + nu_sum_n[k] / (self._sigma_x * self._sigma_x));
 
             tmp_nu = numpy.delete(self._nu, k, 1);
-            assert(tmp_nu.shape==(self._N, self._K-1));
+            assert(tmp_nu.shape == (self._N, self._K - 1));
             tmp_phi_mean = numpy.delete(self._phi_mean, k, 0);
-            assert(tmp_phi_mean.shape==(self._K-1, self._D));
+            assert(tmp_phi_mean.shape == (self._K - 1, self._D));
             phi_mean = numpy.dot(self._X.transpose(), self._nu[:, k][:, numpy.newaxis]).transpose();
             for n in xrange(self._N):
                 phi_mean -= self._nu[n, k] * numpy.sum(tmp_nu[n, :] * tmp_phi_mean.transpose(), axis=1)[:, numpy.newaxis].transpose();
@@ -87,9 +87,9 @@ class VariationalBayes(object):
         var_theta_constant = self.compute_var_theta_constant();
         for k in numpy.random.permutation(xrange(self._K)):
             tmp_nu = numpy.delete(self._nu, k, 1);
-            assert(tmp_nu.shape==(self._N, self._K-1));
+            assert(tmp_nu.shape == (self._N, self._K - 1));
             tmp_phi_mean = numpy.delete(self._phi_mean, k, 0);
-            assert(tmp_phi_mean.shape==(self._K-1, self._D));
+            assert(tmp_phi_mean.shape == (self._K - 1, self._D));
             
             for n in numpy.random.permutation(xrange(self._N)):
                 x_nu_phi = self._X[n, :][numpy.newaxis, :] - numpy.sum(tmp_nu[n, :] * tmp_phi_mean.transpose(), axis=1)[:, numpy.newaxis].transpose();
@@ -103,7 +103,7 @@ class VariationalBayes(object):
     """
     def update_tau(self):
         sum_nu = numpy.sum(self._nu, axis=0);
-        assert(len(sum_nu)==self._K);
+        assert(len(sum_nu) == self._K);
         if self._finite_mode:
             assert(len(sum_nu) == self._K);
             self._tau[0, :] = self._alpha / self._K + sum_nu;
@@ -129,7 +129,7 @@ class VariationalBayes(object):
                 
                 qs = numpy.zeros((self._K, self._K));
                 for m in xrange(k, self._K):
-                    qs[m, 0:m+1] = unnormalized[0:m+1] / numpy.sum(unnormalized[0:m+1]);
+                    qs[m, 0:m + 1] = unnormalized[0:m + 1] / numpy.sum(unnormalized[0:m + 1]);
                 
                 self._tau[0, k] = numpy.sum(sum_nu[k:self._K]) + numpy.dot(N_minus_sum_nu[k + 1:self._K], numpy.sum(qs[k + 1:self._K, k + 1:self._K], axis=1)) + self._alpha;
                 self._tau[1, k] = numpy.dot(N_minus_sum_nu[k:self._K], qs[k:self._K, k]) + 1;
@@ -153,10 +153,10 @@ class VariationalBayes(object):
     def compute_expected_pzk0_qjensen(self, k):
         assert(k >= 0 and k < self._K);
         tau = self._tau[:, 0:k + 1];
-        assert(tau.shape == (2, k+1));
+        assert(tau.shape == (2, k + 1));
 
         psi_tau = scipy.special.psi(tau);
-        assert(psi_tau.shape == (2, k+1));
+        assert(psi_tau.shape == (2, k + 1));
 
         psi_sum_tau = scipy.special.psi(numpy.sum(tau, axis=0));
         assert(len(psi_sum_tau) == k + 1);
@@ -171,10 +171,10 @@ class VariationalBayes(object):
         assert(len(tmp) == k + 1);
         
         q = numpy.exp(tmp - numpy.max(tmp));
-        assert(len(q) == k+1);
+        assert(len(q) == k + 1);
         
         q = q / numpy.sum(q);
-        assert(len(q) == k+1);
+        assert(len(q) == k + 1);
 
         # compute the lower bound
         lower_bound = numpy.sum(q * (tmp - numpy.log(q)));
@@ -218,7 +218,7 @@ class VariationalBayes(object):
             log_likelihood[0] = self._K * numpy.log(self._alpha) + (self._alpha - 1.) * numpy.sum(psi_tau[0, :] - psi_sum_tau);
             # compute the probability of feature statistics
             for k in xrange(self._K):
-                log_likelihood[1] += numpy.sum(self._nu[:, k]) * numpy.sum(psi_tau[0, :k+1] - psi_sum_tau[0, :k+1]);
+                log_likelihood[1] += numpy.sum(self._nu[:, k]) * numpy.sum(psi_tau[0, :k + 1] - psi_sum_tau[0, :k + 1]);
                 log_likelihood[1] += numpy.dot((self._N - numpy.sum(self._nu[:, k])), self.compute_expected_pzk0_qjensen(k));
             
         # compute the probability of feature distribution
@@ -227,7 +227,7 @@ class VariationalBayes(object):
         
         # compute the probability of data likelihood
         tmp_log_likelihood = numpy.sum(self._X * self._X) - 2 * numpy.sum(self._nu * numpy.dot(self._X, self._phi_mean.transpose()));
-        tmp_1 = numpy.dot(numpy.ones((self._N, self._D)), (self._phi_cov + self._phi_mean**2).transpose());
+        tmp_1 = numpy.dot(numpy.ones((self._N, self._D)), (self._phi_cov + self._phi_mean ** 2).transpose());
         tmp_log_likelihood += numpy.sum(self._nu * tmp_1);
         tmp_1 = numpy.dot(self._nu, self._phi_mean);
         tmp_2 = numpy.sum(numpy.dot(self._nu ** 2, self._phi_mean ** 2));
