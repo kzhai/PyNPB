@@ -1,5 +1,5 @@
 """
-Author: Ke Zhai (zhaike@cs.umd.edu)
+@author: Ke Zhai (zhaike@cs.umd.edu)
 
 This code was modified from the code originally written by Chong Wang (chongw@cs.princeton.edu).
 Implements uncollapsed Gibbs sampling for the hierarchical Dirichlet process (HDP).

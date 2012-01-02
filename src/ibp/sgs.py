@@ -1,5 +1,5 @@
 """
-Author: Ke Zhai (zhaike@cs.umd.edu)
+@author: Ke Zhai (zhaike@cs.umd.edu)
 
 Implements uncollapsed Gibbs sampling for the linear-Gaussian infinite latent feature model (IBP).
 """

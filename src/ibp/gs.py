@@ -3,7 +3,7 @@ import numpy, scipy;
 import math;
 
 """
-
+@author: Ke Zhai (zhaike@cs.umd.edu)
 """
 class GibbsSampling(object):
     __metaclass__ = abc.ABCMeta;

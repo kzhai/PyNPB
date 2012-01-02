@@ -1,5 +1,5 @@
 """
-Author: Ke Zhai (zhaike@cs.umd.edu)
+@author: Ke Zhai (zhaike@cs.umd.edu)
 
 This code was modified from the code originally written by Frank Wood (fwood@stat.columbia.edu).
 Implements collapsed Gibbs sampling for the infinite Gaussian mixture model (IGMM).

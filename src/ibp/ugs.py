@@ -1,5 +1,5 @@
 """
-Author: Ke Zhai (zhaike@cs.umd.edu)
+@author: Ke Zhai (zhaike@cs.umd.edu)
 
 This code was modified from the code originally written by David Andrzejewski (david.andrzej@gmail.com).
 Implements uncollapsed Gibbs sampling for the linear-Gaussian infinite latent feature model (IBP).
