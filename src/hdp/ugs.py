@@ -33,11 +33,10 @@ class UncollapsedGibbsSampling(object):
 
     """
     @param data: a N-by-D numpy array object, defines N points of D dimension
-    @param alpha: the concentration parameter of the dirichlet process
-    @param kappa_0: initial kappa_0
-    @param nu_0: initial nu_0
-    @param mu_0: initial cluster center
-    @param lambda_0: initial lambda_0
+    @param K: number of topics, number of broke sticks
+    @param alpha: the probability of f_{k_{\mathsf{new}}}^{-x_{dv}}(x_{dv}), the prior probability density for x_{dv}
+    @param gamma: the smoothing value for a table to be assigned to a new topic
+    @param eta: the smoothing value for a word to be assigned to a new topic
     """
     def _initialize(self, data, K=1, alpha=1., gamma=1., eta=1.):
         # initialize the total number of topics.
@@ -493,6 +492,7 @@ if __name__ == '__main__':
     temp_directory = "../../data/test/";
     #temp_directory = "../../data/de-news/en/corpus-3/";
     data = import_monolingual_data(temp_directory + "doc.dat");
+    print data
 
     gs = UncollapsedGibbsSampling(50);
     gs._initialize(data);
