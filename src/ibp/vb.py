@@ -24,7 +24,11 @@ class VariationalBayes(object):
         self._snapshot_interval = snapshot_interval;
     
     """
-    @param data: 
+    @param data: a N-by-D matrix, representing N images, each of which contains D pixel
+    @param truncation_level: truncation level for variational inference indian buffet process
+    @param alpha: hyper-parameter defining the indian buffet process
+    @param sigma_a: feature sigma
+    @param sigma_x: data sigma
     take note: words are not terms, they are repeatable and thus might be not unique
     """
     def _initialize(self, data, truncation_level=5, alpha=1., sigma_a=1., sigma_x=1.):
