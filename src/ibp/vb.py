@@ -29,7 +29,6 @@ class VariationalBayes(object):
     @param alpha: hyper-parameter defining the indian buffet process
     @param sigma_a: feature sigma
     @param sigma_x: data sigma
-    take note: words are not terms, they are repeatable and thus might be not unique
     """
     def _initialize(self, data, truncation_level=5, alpha=1., sigma_a=1., sigma_x=1.):
         self._X = data;
@@ -50,7 +49,7 @@ class VariationalBayes(object):
             self._tau[0, :] = self._alpha;
             self._tau += 0.5 * numpy.min(1., self._alpha) * (numpy.random.random(self._tau.shape) - 0.5);
         assert(self._tau.shape == (2, self._K));
-            
+
         # nu
         self._nu = numpy.random.random((self._N, self._K));
         assert(self._nu.shape == (self._N, self._K));
