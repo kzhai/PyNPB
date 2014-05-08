@@ -225,8 +225,6 @@ class CollapsedGibbsSampling(object):
                     self._sigma_inv[new_label, :, :] = numpy.linalg.inv(sigma);
                     self._log_sigma_det[new_label] = numpy.linalg.det(sigma);
                 
-                break
-
             if iter > 0 and iter % 100 == 0:
                 print "sampling in progress %2d%%" % (100 * iter / iteration);
                 print "total number of cluster %i, likelihood is %f" % (self._K, self.log_likelihood());
