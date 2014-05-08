@@ -126,23 +126,23 @@ class UncollapsedGibbsSampling(object):
                     f_new /= (numpy.sum(self._m_k) + self._gamma);
                     
                     # compute the probability of this word sitting at every table 
-                    table_probablity = numpy.zeros(len(self._k_dt[document_index]) + 1);
+                    table_probability = numpy.zeros(len(self._k_dt[document_index]) + 1);
                     for t in xrange(len(self._k_dt[document_index])):
                         if self._n_dt[document_index][t] > 0:
                             # if there are some words sitting on this table, the probability will be proportional to the population
                             assigned_topic = self._k_dt[document_index][t];
                             assert(assigned_topic >= 0 or assigned_topic < self._K);
-                            table_probablity[t] = f[assigned_topic] * self._n_dt[document_index][t];
+                            table_probability[t] = f[assigned_topic] * self._n_dt[document_index][t];
                         else:
                             # if there are no words sitting on this table
                             # note that it is an old table, hence the prior probability is 0, not self._alpha
-                            table_probablity[t] = 0.;
+                            table_probability[t] = 0.;
                     # compute the probability of current word sitting on a new table, the prior probability is self._alpha
-                    table_probablity[len(self._k_dt[document_index])] = self._alpha * f_new;
+                    table_probability[len(self._k_dt[document_index])] = self._alpha * f_new;
 
                     # sample a new table this word should sit in
-                    table_probablity /= numpy.sum(table_probablity);
-                    cdf = numpy.cumsum(table_probablity);
+                    table_probability /= numpy.sum(table_probability);
+                    cdf = numpy.cumsum(table_probability);
                     new_table = numpy.uint8(numpy.nonzero(cdf >= numpy.random.random())[0][0]);
 
                     # assign current word to new table
@@ -167,16 +167,19 @@ class UncollapsedGibbsSampling(object):
                         # sample a new topic this table should be assigned
                         topic_probability /= numpy.sum(topic_probability);
                         cdf = numpy.cumsum(topic_probability);
-                        k_new = numpy.uint8(numpy.nonzero(cdf >= numpy.random.random())[0][0]);
+                        new_topic = numpy.uint8(numpy.nonzero(cdf >= numpy.random.random())[0][0]);
+                        
+                        self._k_dt[document_index][new_table] = new_topic
                         
                         # if current table requires a new topic
-                        if k_new == self._K:
+                        if new_topic == self._K:
                             # expand the matrices to fit in new topic
                             self._K += 1;
                             self._n_kv = numpy.vstack((self._n_kv, numpy.zeros((1, self._V))));
                             assert(self._n_kv.shape == (self._K, self._V));
                             self._n_kd = numpy.vstack((self._n_kd, numpy.zeros((1, self._D))));
                             assert(self._n_kd.shape == (self._K, self._D));
+                            self._k_dt[document_index][-1] = new_topic;
                             self._m_k = numpy.hstack((self._m_k, numpy.zeros(1)));
                             assert(len(self._m_k) == self._K);
                             

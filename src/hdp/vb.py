@@ -12,54 +12,53 @@ class VariationalBayes(object):
     def __init__(self,
                  snapshot_interval=10,
                  finite_mode=True,
+                 lambda=None,
                  model_likelihood_threshold=0.00001,
                  global_maximum_iteration=100):
         self._global_maximum_iteration = global_maximum_iteration;
         self._finite_mode = finite_mode;
+        assert(lambda == None or type(lambda) == tuple);
+        self._lambda = lambda;
         self._model_likelihood_threshold = model_likelihood_threshold;
         
         self._snapshot_interval = snapshot_interval;
     
     """
-    @param data: 
+    @param data:
     take note: words are not terms, they are repeatable and thus might be not unique
     """
     def _initialize(self, data, K=5):
         # initialize the total number of topics.
         self._K = K;
-                
-        # initialize a K-dimensional vector, valued at 1/K.
 
         # initialize the documents, key by the document path, value by a list of non-stop and tokenized words, with duplication.
         data = dict_list_2_dict_freqdist(data);
         self._data = data
         print data
-        
+
         # initialize the size of the collection, i.e., total number of documents.
         self._D = len(self._data)
-        
+
         # initialize the vocabulary, i.e. a list of distinct tokens.
         self._vocab = []
         for token_list in data.values():
             self._vocab += token_list
         self._vocab = list(set(self._vocab))
-        
+
         # initialize the size of the vocabulary, i.e. total number of distinct tokens.
         self._V = len(self._vocab)
+
+        # initialize a V-by-K matrix phi, valued at random.
+        self._phi = numpy.random.random(self._V, self._K);
+        assert(self._phi.shape == (self._V, self._K));
         
         # initialize a (K-1)-by-2 matrix gamma, valued at random.
-        self._gamma = numpy.random.random((2, self._K-1));
-        assert(self._gamma.shape == (2, self._K-1));
+        self._gamma = numpy.random.random((self._K, 2));
+        assert(self._gamma.shape == (self._K, 2));
         
         # initialize a K-by-2 matrix beta, valued at random.
-        self._tau = numpy.random.random((2, self._K));
-        assert(self._tau.shape == (2, self._K));
-
-        # initialize a matrix phi
-        self._phi_mean = numpy.random.normal(0., 1., (self._K, self._D)) * 0.01;
-        self._phi_cov = numpy.random.normal(0., 1., (self._K, self._D)) ** 2 * 0.1;
-        assert(self._phi_mean.shape == (self._K, self._D));
-        assert(self._phi_cov.shape == (self._K, self._D));
+        self._tau = numpy.random.random((self._K, 2));
+        assert(self._tau.shape == (self._K, 2));
 
     """
     """
