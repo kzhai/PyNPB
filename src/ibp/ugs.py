@@ -33,7 +33,7 @@ class UncollapsedGibbsSampling(GibbsSampling):
     """
     sample the corpus to train the parameters
     """
-    def sample(self, iteration, directory="../../output/tmp-output/"):
+    def sample(self, iteration, directory="../output/tmp-output/"):
         import os, shutil
         if os.path.exists(directory):
             shutil.rmtree(directory);
@@ -307,7 +307,7 @@ if __name__ == '__main__':
     #import util.scaled_image;
     
     # load the data from the matrix
-    mat_vals = scipy.io.loadmat('../../data/cambridge-bars/block_image_set.mat');
+    mat_vals = scipy.io.loadmat('../data/cambridge-bars/block_image_set.mat');
     true_weights = mat_vals['trueWeights']
     features = mat_vals['features']
     data = mat_vals['data']
