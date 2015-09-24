@@ -361,6 +361,7 @@ class UncollapsedGibbsSampling(object):
             log_likelihood += len(self._k_dt[document_index]) * numpy.log(self._alpha) - log_factorial(len(self._t_dv[document_index]), self._alpha);
             for table_index in xrange(len(self._k_dt[document_index])):
                 log_likelihood += scipy.special.gammaln(self._n_dt[document_index][table_index]);
+            log_likelihood += scipy.special.gammaln(self._alpha);
             
         return log_likelihood
     
@@ -371,6 +372,7 @@ class UncollapsedGibbsSampling(object):
         log_likelihood = self._K * numpy.log(self._gamma) - log_factorial(numpy.sum(self._m_k), self._gamma);
         for topic_index in xrange(self._K):
             log_likelihood += scipy.special.gammaln(self._m_k[topic_index]);
+        log_likelihood += scipy.special.gammaln(self._gamma);
         
         return log_likelihood
     
@@ -386,7 +388,7 @@ class UncollapsedGibbsSampling(object):
             log_likelihood -= scipy.special.gammaln(self._V * self._eta + n_k[topic_index]);
             for word_index in xrange(self._V):
                 if self._n_kv[topic_index, word_index] > 0:
-                    log_likelihood += scipy.special.gammaln(self._n_kv[topic_index, word_index] + self._eta) + scipy.special.gammaln(self._eta);
+                    log_likelihood += scipy.special.gammaln(self._n_kv[topic_index, word_index] + self._eta) - scipy.special.gammaln(self._eta);
                     
         return log_likelihood
         
